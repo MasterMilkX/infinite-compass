@@ -1,5 +1,3 @@
-//test
-
 //set up the canvas
 var canvas = document.createElement("canvas");
 canvas.id = "game";
