@@ -201,63 +201,79 @@ function render(){
 
 ////////////            BOT FUNCTIONS             ///////////
 var initPos;
+var moving;
 function goNorth(robot){
-  initPos = Math.floor(robot.y);
-  robot.dir = "north";
-  robot.action = "travel";
+  if(!moving){
+    initPos = Math.floor(robot.y);
+    robot.dir = "north";
+    robot.action = "travel";
+  }
 }
 function goSouth(robot){
-  initPos = Math.floor(robot.y);
-  robot.dir = "south";
-  robot.action = "travel";
+  if(!moving){
+    initPos = Math.floor(robot.y);
+    robot.dir = "south";
+    robot.action = "travel";
+  }
 }
 function goEast(robot){
-  initPos = Math.floor(robot.x);
-  robot.dir = "east";
-  robot.action = "travel";
+  if(!moving){
+    initPos = Math.floor(robot.x);
+    robot.dir = "east";
+    robot.action = "travel";
+  }
 }
 function goWest(robot){
-  initPos = Math.floor(robot.x);
-  robot.dir = "west";
-  robot.action = "travel";
+  if(!moving){
+    initPos = Math.floor(robot.x);
+    robot.dir = "west";
+    robot.action = "travel";
+  }
 }
 function travel(robot){
   if(robot.action == "travel"){   //continue if allowed to move
     //travel north
     if(robot.dir == "north"){
-      if(robot.y > (initPos - size)){
+      if(Math.floor(robot.y) > (initPos - size)){
         robot.velY = robot.speed;
         robot.y -= robot.velY;
+        moving = true;
       }else{
         robot.velY = 0;
         robot.action = "idle";
+        moving = false;
       }
     }else if(robot.dir == "south"){
-      if(robot.y < (initPos + size)){
+      if(Math.floor(robot.y) < (initPos + size)){
         robot.velY = robot.speed;
         robot.y += robot.velY;
+        moving = true;
       }else{
         robot.velY = 0;
         robot.action = "idle";
+        moving = false;
       }
     }else if(robot.dir == "east"){
-      if(robot.x < (initPos + size)){
+      if(Math.floor(robot.x) < (initPos + size)){
         robot.velX = robot.speed;
         robot.x += robot.velX;
+        moving = true;
       }else{
         robot.velX = 0;
         robot.action = "idle";
+        moving = false;
       }
     }else if(robot.dir == "west"){
-      if(robot.x > (initPos - size)){
+      if(Math.floor(robot.x) > (initPos - size)){
         robot.velX = robot.speed;
         robot.x -= robot.velX;
+        moving = true;
       }else{
         robot.velX = 0;
         robot.action = "idle";
+        moving = false;
       }
     }
-
   }
 }
 
@@ -271,8 +287,8 @@ function main(){
   travel(bot);
 
   //settings debugger screen
-  var pixX = Math.floor(bot.x);
-  var pixY = Math.floor(bot.y);
+  var pixX = Math.floor(bot.x) / size;
+  var pixY = Math.floor(bot.y) / size;
 
   var settings = "X: " + Math.round(bot.x) + " | Y: " + Math.round(bot.y);
   settings += " --- Pix X: " + pixX + " | Pix Y: " + pixY;
