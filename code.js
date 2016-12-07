@@ -16,7 +16,6 @@ terrain.src = "sprites/mapGrid3.png";
 var terrainReady = false;
 terrain.onload = function(){
   terrainReady = true;
-  randomMap();
 };
 
 //background image
@@ -45,9 +44,9 @@ var bot = {
   img : botIMG,
   ready : botReady,
   //movement
-  speed : 2,
-  x : 10 * size, 
-  y : 10 * size,
+  speed : 1,
+  x : 9 * size, 
+  y : 9 * size,
   velX : 0,
   velY : 0,
   fps : 4,            //frame speed
@@ -66,6 +65,10 @@ var bot = {
   curFrame : 0,
   ct : 0
 };
+
+
+
+//////////////////////        MAP FUNCTIONS       //////////////
 
 
 //start with a blank map or something
@@ -99,7 +102,118 @@ function randomTerrain(){
 	else
 		return 2;
 }
-//blankMap();
+//randomMap();
+
+function addNature(multi, obj, prob, dec){
+  var range = Math.floor(Math.random() * multi) + 1
+  for(var a = 0; a < rows; a+=(range)){
+    for(var b = 0; b < cols; b+=(range)){
+      generate(obj, prob, dec, b, a);
+    }
+  }
+}
+
+function generate(obj, prob, dec, x, y){
+  var r = Math.random();
+  if(r < prob){
+    make(obj, x, y);
+
+    //go in each direction
+    generate(obj, prob - dec, dec, x, y+1);
+    generate(obj, prob - dec, dec, x, y-1);
+    generate(obj, prob - dec, dec, x+1, y);
+    generate(obj, prob - dec, dec, x-1, y);
+  }else{
+    return;
+  }
+}
+
+function make(obj, x, y){
+  if((x >= 0 && x < rows) && (y >= 0 && y < cols) && map[y][x] == 0)
+    map[y][x] = obj;
+}
+
+blankMap();
+addNature(3, 1, 0.2, 0.01);   //water
+
+///////////////            BOT FUNCTIONS             ///////////
+var initPos;
+var moving;
+function goNorth(robot){
+  if(!moving){
+    initPos = Math.floor(robot.y);
+    robot.dir = "north";
+    robot.action = "travel";
+  }
+}
+function goSouth(robot){
+  if(!moving){
+    initPos = Math.floor(robot.y);
+    robot.dir = "south";
+    robot.action = "travel";
+  }
+}
+function goEast(robot){
+  if(!moving){
+    initPos = Math.floor(robot.x);
+    robot.dir = "east";
+    robot.action = "travel";
+  }
+}
+function goWest(robot){
+  if(!moving){
+    initPos = Math.floor(robot.x);
+    robot.dir = "west";
+    robot.action = "travel";
+  }
+}
+function travel(robot){
+  if(robot.action == "travel"){   //continue if allowed to move
+    //travel north
+    if(robot.dir == "north"){
+      if(Math.floor(robot.y) > (initPos - size)){
+        robot.velY = robot.speed;
+        robot.y -= robot.velY;
+        moving = true;
+      }else{
+        robot.velY = 0;
+        robot.action = "idle";
+        moving = false;
+      }
+    }else if(robot.dir == "south"){
+      if(Math.floor(robot.y) < (initPos + size)){
+        robot.velY = robot.speed;
+        robot.y += robot.velY;
+        moving = true;
+      }else{
+        robot.velY = 0;
+        robot.action = "idle";
+        moving = false;
+      }
+    }else if(robot.dir == "east"){
+      if(Math.floor(robot.x) < (initPos + size)){
+        robot.velX = robot.speed;
+        robot.x += robot.velX;
+        moving = true;
+      }else{
+        robot.velX = 0;
+        robot.action = "idle";
+        moving = false;
+      }
+    }else if(robot.dir == "west"){
+      if(Math.floor(robot.x) > (initPos - size)){
+        robot.velX = robot.speed;
+        robot.x -= robot.velX;
+        moving = true;
+      }else{
+        robot.velX = 0;
+        robot.action = "idle";
+        moving = false;
+      }
+    }
+  }
+}
+
 
 /////////////////////////DRAWING AND RENDERING//////////////////////////
 //rendering function for the map
@@ -196,85 +310,6 @@ function render(){
   ctx.restore();
   requestAnimationFrame(render);
     
-}
-
-
-////////////            BOT FUNCTIONS             ///////////
-var initPos;
-var moving;
-function goNorth(robot){
-  if(!moving){
-    initPos = Math.floor(robot.y);
-    robot.dir = "north";
-    robot.action = "travel";
-  }
-}
-function goSouth(robot){
-  if(!moving){
-    initPos = Math.floor(robot.y);
-    robot.dir = "south";
-    robot.action = "travel";
-  }
-}
-function goEast(robot){
-  if(!moving){
-    initPos = Math.floor(robot.x);
-    robot.dir = "east";
-    robot.action = "travel";
-  }
-}
-function goWest(robot){
-  if(!moving){
-    initPos = Math.floor(robot.x);
-    robot.dir = "west";
-    robot.action = "travel";
-  }
-}
-function travel(robot){
-  if(robot.action == "travel"){   //continue if allowed to move
-    //travel north
-    if(robot.dir == "north"){
-      if(Math.floor(robot.y) > (initPos - size)){
-        robot.velY = robot.speed;
-        robot.y -= robot.velY;
-        moving = true;
-      }else{
-        robot.velY = 0;
-        robot.action = "idle";
-        moving = false;
-      }
-    }else if(robot.dir == "south"){
-      if(Math.floor(robot.y) < (initPos + size)){
-        robot.velY = robot.speed;
-        robot.y += robot.velY;
-        moving = true;
-      }else{
-        robot.velY = 0;
-        robot.action = "idle";
-        moving = false;
-      }
-    }else if(robot.dir == "east"){
-      if(Math.floor(robot.x) < (initPos + size)){
-        robot.velX = robot.speed;
-        robot.x += robot.velX;
-        moving = true;
-      }else{
-        robot.velX = 0;
-        robot.action = "idle";
-        moving = false;
-      }
-    }else if(robot.dir == "west"){
-      if(Math.floor(robot.x) > (initPos - size)){
-        robot.velX = robot.speed;
-        robot.x -= robot.velX;
-        moving = true;
-      }else{
-        robot.velX = 0;
-        robot.action = "idle";
-        moving = false;
-      }
-    }
-  }
 }
 
 
