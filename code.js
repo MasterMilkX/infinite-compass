@@ -12,10 +12,24 @@ var rows = 20;
 var cols = 20;
 var size = 16;
 var terrain = new Image();
-terrain.src = "sprites/mapGrid3.png";
+terrain.src = "sprites/mapGrid4.png";
 var terrainReady = false;
 terrain.onload = function(){
   terrainReady = true;
+};
+
+//nature objects
+var treeBottom = new Image();
+treeBottom.src = "sprites/tree_trunk2.png";
+treeBottomReady = false;
+treeBottom.onload = function(){
+  treeBottomReady = true;
+};
+var treeTop = new Image();
+treeTop.src = "sprites/tree_leaves2.png";
+treeTopReady = false;
+treeTop.onload = function(){
+  treeTopReady = true;
 };
 
 //background image
@@ -39,12 +53,12 @@ var bot = {
   name : "shu",
   width : 32,
   height : 20,
-  dir : "west",
+  dir : "south",
   action: "idle",
   img : botIMG,
   ready : botReady,
   //movement
-  speed : 1,
+  speed : 2,
   x : 9 * size, 
   y : 9 * size,
   velX : 0,
@@ -134,7 +148,9 @@ function make(obj, x, y){
 }
 
 blankMap();
-addNature(3, 1, 0.2, 0.01);   //water
+addNature(3, 1, 0.2, 0.01);     //water
+addNature(4, 3, 0.25, 0.02);    //tree
+
 
 ///////////////            BOT FUNCTIONS             ///////////
 var initPos;
@@ -225,7 +241,35 @@ function drawMap(){
       }
     }
   }
-}//rendering functions for the characters
+}
+function drawTreeTop(){
+  if(treeTopReady){
+    for(var y = 0; y < rows; y++){
+      for(var x = 0; x < cols; x++){
+        if(map[y][x] == 3)
+        ctx.drawImage(treeTop, 0, 0, 
+            treeTop.width, treeTop.height, 
+            (x * size) - 16, (y * size) - 20, 
+            treeTop.width, treeTop.height);
+      }
+    }
+  }
+}
+function drawTreeBottom(){
+  if(treeBottomReady){
+    for(var y = 0; y < rows; y++){
+      for(var x = 0; x < cols; x++){
+        if(map[y][x] == 3)
+        ctx.drawImage(treeBottom, 0, 0, 
+            treeBottom.width, treeBottom.height, 
+            (x * size) - 4, (y * size) - 8, 
+            treeBottom.width, treeBottom.height);
+      }
+    }
+  }
+}
+
+//rendering functions for the characters
 function drawBot(){
     updaterobot(bot);
     renderrobot(bot);
@@ -304,8 +348,14 @@ function render(){
   //draw the map
   drawMap();
 
+  //draw tree trunk
+  drawTreeBottom();
+
   //draw the robot
   drawBot();
+
+  //draw tree tops
+  drawTreeTop();
 
   ctx.restore();
   requestAnimationFrame(render);
