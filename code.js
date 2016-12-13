@@ -80,6 +80,12 @@ var bot = {
   ct : 0
 };
 
+//arrow sprite
+var arrowIMG = new Image();
+var arrowReady = false;
+var arrowShow = false;
+arrowIMG.src = "sprites/arrow.png";
+arrowIMG.onload = new function(){arrowReady = true;}
 
 
 //////////////////////        MAP FUNCTIONS       //////////////
@@ -96,6 +102,8 @@ function blankMap(){
 		map[a] = row;
 	}
 }
+
+//make completely random tiled map
 function randomMap(){
 	map = [];
 	for(var a = 0; a < rows; a++){
@@ -106,6 +114,7 @@ function randomMap(){
 		map[a] = row;
 	}
 }
+//return random terrain value based on probability
 function randomTerrain(){
 	//grass - 70%, wter - 10%, earth - 20%
 	var chance = Math.floor(Math.random() * 100);
@@ -118,6 +127,8 @@ function randomTerrain(){
 }
 //randomMap();
 
+
+//randomizes the nature pools all over the map
 function addNature(multi, obj, prob, dec){
   var range = Math.floor(Math.random() * multi) + 1
   for(var a = 0; a < rows; a+=(range)){
@@ -127,6 +138,7 @@ function addNature(multi, obj, prob, dec){
   }
 }
 
+//generates nature pools
 function generate(obj, prob, dec, x, y){
   var r = Math.random();
   if(r < prob){
@@ -142,14 +154,64 @@ function generate(obj, prob, dec, x, y){
   }
 }
 
+//create a terrain tile at the specific pt on the map
 function make(obj, x, y){
   if((x >= 0 && x < rows) && (y >= 0 && y < cols) && map[y][x] == 0)
     map[y][x] = obj;
 }
 
-blankMap();
-addNature(3, 1, 0.2, 0.01);     //water
-addNature(4, 3, 0.25, 0.02);    //tree
+
+////// bot check //////
+
+//if at the edge of the map
+function atWorldsEnd(bot){
+  var halfTile = size / 2;
+  if(bot.x <= -halfTile){                            //edge of west side
+    braveNewWorld("west", bot);
+  }else if(bot.x >= ((cols * size) - halfTile)){     //edge of east side
+    braveNewWorld("east", bot);
+  }else if(bot.y <= -halfTile){                      //edge of west side
+    braveNewWorld("north", bot);
+  }else if(bot.y >= ((rows * size) - halfTile)){     //edge of east side
+    braveNewWorld("south", bot);
+  }
+}
+
+//generates a new world map with bot starting from an edge
+function braveNewWorld(direction, robot){
+  console.log(direction);
+  //moving = false;
+  var halfTile = size / 2;
+  if(direction == "north"){             //spawn at the bottom
+    robot.y = rows * size - halfTile;
+    initPos = rows * size;
+  }else if(direction == "south"){       //spawn at the top
+    robot.y = -halfTile;
+    initPos = -size;
+  }else if(direction == "west"){        //spawn at the right
+    robot.x = cols * size - halfTile;
+    initPos = cols * size;
+  }else if(direction == "east"){        //spawn at the left
+    robot.x = -halfTile;
+    initPos = -size;
+  }
+
+  blankMap();
+  addNature(3, 1, 0.2, 0.01);     //water
+  addNature(4, 3, 0.25, 0.02);    //tree
+}
+//generates a new world map with bot starting from a point
+function braveNewWorld2(robot, x, y, spec){
+  robot.x = size * x;
+  robot.y = size * y;
+  moving = false;
+  blankMap(); 
+  addNature(3, 1, 0.2, 0.01);     //water
+  addNature(4, 3, 0.25, 0.02);    //tree
+}
+
+//start screen
+braveNewWorld2(bot, 9, 9, "none");
 
 
 ///////////////            BOT FUNCTIONS             ///////////
@@ -226,6 +288,20 @@ function travel(robot){
         robot.action = "idle";
         moving = false;
       }
+    }
+  }
+}
+
+//arrow to locate the robot in the trees
+function finderArrow(robot){
+  var posX = Math.round(robot.x / 16);
+  var posY = Math.round(robot.y / 16) + 1;
+
+  if((posX >= 0 && posX < cols) && (posY >= 0 && posY < rows)){
+    if(map[posY - 1][posX] == 3 || map[posY][posX] == 3){
+      arrowShow = true;
+    }else{
+      arrowShow = false;
     }
   }
 }
@@ -328,8 +404,18 @@ function renderrobot(robot){
     ctx.drawImage(robot.img, 
     col * robot.width, row * robot.height, 
     robot.width, robot.height,
-    robot.x - 8, robot.y + 12, 
+    robot.x - 8, robot.y - 4, 
     robot.width, robot.height);
+  }
+}
+
+function drawArrow(robot){
+  if(arrowReady && arrowShow){
+    ctx.drawImage(arrowIMG, 
+      0, 0, 
+      16, 12,
+      robot.x, robot.y -16, 
+      16, 12);
   }
 }
 
@@ -357,6 +443,9 @@ function render(){
   //draw tree tops
   drawTreeTop();
 
+  //draw the arrow to find the robot
+  drawArrow(bot);
+
   ctx.restore();
   requestAnimationFrame(render);
     
@@ -370,6 +459,8 @@ function main(){
   canvas.focus();
 
   travel(bot);
+  finderArrow(bot);
+  atWorldsEnd(bot);
 
   //settings debugger screen
   var pixX = Math.floor(bot.x) / size;
