@@ -179,7 +179,6 @@ function atWorldsEnd(bot){
 
 //generates a new world map with bot starting from an edge
 function braveNewWorld(direction, robot){
-  console.log(direction);
   //moving = false;
   var halfTile = size / 2;
   if(direction == "north"){             //spawn at the bottom
@@ -297,11 +296,57 @@ function finderArrow(robot){
   var posX = Math.round(robot.x / 16);
   var posY = Math.round(robot.y / 16) + 1;
 
-  if((posX >= 0 && posX < cols) && (posY >= 0 && posY < rows)){
+  if((posX >= 0 && posX < cols) && (posY >= 0 && posY < rows) && ((posY - 1) >= 0)){
     if(map[posY - 1][posX] == 3 || map[posY][posX] == 3){
       arrowShow = true;
     }else{
       arrowShow = false;
+    }
+  }
+}
+
+//change the speed of the robot based on the terrain 
+function terrainTrek(robot){
+  var posX = Math.round(robot.x / 16);
+  var posY = Math.round(robot.y / 16);
+
+  if(posX >= 0 && posY >= 0 && posX < cols && posY < rows){
+    if(map[posY][posX] == 1){           //water
+      robot.speed = 1;
+    }else if(map[posY][posX] == 2){     //sand-dirt
+      robot.speed = 1;
+    }else{                              //grass
+      robot.speed = 2;
+    }
+  }
+}
+
+
+////////   AI DECISION MAKING   ////////
+
+//import the actions
+function makeACompass(set){
+
+}
+//decides how to walk
+function compass(actions){
+
+}
+
+
+//random walking
+function drunkardsWalk(robot){
+  var dice;
+  if(!moving){
+    dice = Math.floor(Math.random() * 4);
+    if(dice == 0){
+      goNorth(bot);
+    }else if(dice == 1){
+      goSouth(bot);
+    }else if(dice == 2){
+      goWest(bot);
+    }else if(dice == 3){
+      goEast(bot);
     }
   }
 }
@@ -458,13 +503,16 @@ function main(){
 	requestAnimationFrame(main);
   canvas.focus();
 
+  //drunkardsWalk();
+
   travel(bot);
+  terrainTrek(bot);
   finderArrow(bot);
   atWorldsEnd(bot);
 
   //settings debugger screen
-  var pixX = Math.floor(bot.x) / size;
-  var pixY = Math.floor(bot.y) / size;
+  var pixX = Math.floor(bot.x / size);
+  var pixY = Math.floor(bot.y / size);
 
   var settings = "X: " + Math.round(bot.x) + " | Y: " + Math.round(bot.y);
   settings += " --- Pix X: " + pixX + " | Pix Y: " + pixY;
