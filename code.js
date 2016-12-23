@@ -57,6 +57,8 @@ var bot = {
   action: "idle",
   img : botIMG,
   ready : botReady,
+  brain : [],
+
   //movement
   speed : 2,
   x : 9 * size, 
@@ -325,9 +327,19 @@ function terrainTrek(robot){
 ////////   AI DECISION MAKING   ////////
 
 //import the actions
-function makeACompass(set){
-
+function makeACompass(robot, set){
+  robot.actions = getSet(set).actions;
+  console.log(robot.actions);
 }
+//find the actions
+function getSet(name){
+  for(var a = 0; a < botSets.length; a++){
+    if(botSets[a].name == name){
+      return botSets[a];
+    }
+  }
+}
+
 //decides how to walk
 function compass(actions){
 
@@ -498,6 +510,11 @@ function render(){
 
 
 ////////////         SIMULATION FUNCTIONS         //////////
+
+function init(){
+  makeACompass(bot, 'a');
+}
+init();
 
 function main(){
 	requestAnimationFrame(main);
