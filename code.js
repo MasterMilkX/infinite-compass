@@ -90,6 +90,65 @@ arrowIMG.src = "sprites/arrow.png";
 arrowIMG.onload = new function(){arrowReady = true;}
 
 
+//////////////////////       ITEM FUNCTIONS       //////////////
+
+var itemSet = [];
+
+//generic function for all items
+function item(name, x, y){
+  this.name = name;
+  this.x = x;
+  this.y = y;
+  this.show = true;
+  this.img;
+  this.imgReady;
+  this.dispX = 0;
+  this.dispY = 0;
+  this.spec;
+  this.value;
+}
+
+///// import all the image sprites ////// 
+//apple
+var appleIMG = new Image();
+var appleReady = false;
+appleIMG.src = "sprites/apple.png";
+appleIMG.onload = new function(){appleReady = true;}
+
+
+//initiate the items at random points on the map
+function makeItems(num, name){
+  itemSet = [];
+  for(var a = 0; a < num; a++){
+    var x = Math.floor(Math.random() * cols);
+    var y = Math.floor(Math.random() * rows);
+    itemSet.push(new item(name, x, y));
+  }
+}
+
+//have a bot pick up said item
+function pickup(robot){
+  for(var a = 0; a < itemSet.length; a++){
+    var myItem = itemSet[a];
+    if(isTouching(robot, myItem) && myItem.show){
+      console.log(myItem.name + " get!");
+      myItem.show = false;
+    }
+  }
+}
+
+//check if collision on same tile with item and robot
+function isTouching(robot, item){
+  var botX = Math.round(robot.x / size);
+  var botY = Math.round(robot.y / size);
+
+  if(botX == item.x && botY == item.y)
+    return true;
+  else
+    return false;
+}
+
+
 //////////////////////        MAP FUNCTIONS       //////////////
 
 
@@ -198,8 +257,9 @@ function braveNewWorld(direction, robot){
   }
 
   blankMap();
-  addNature(3, 1, 0.2, 0.01);     //water
-  addNature(4, 3, 0.25, 0.02);    //tree
+  addNature(3, 1, 0.2, 0.01);                         //water
+  addNature(4, 3, 0.25, 0.02);                        //tree
+  makeItems(Math.floor(Math.random * 11), "apple");   //apple
 }
 //generates a new world map with bot starting from a point
 function braveNewWorld2(robot, x, y, spec){
@@ -207,8 +267,11 @@ function braveNewWorld2(robot, x, y, spec){
   robot.y = size * y;
   moving = false;
   blankMap(); 
-  addNature(3, 1, 0.2, 0.01);     //water
-  addNature(4, 3, 0.25, 0.02);    //tree
+  addNature(3, 1, 0.2, 0.01);                         //water
+  addNature(4, 3, 0.25, 0.02);                        //tree
+  //makeItems(Math.floor(Math.random * 11), "apple");   //apple
+  makeItems(5, "apple");   //apple
+
 }
 
 //start screen
@@ -328,8 +391,8 @@ function terrainTrek(robot){
 
 //import the actions
 function makeACompass(robot, set){
-  robot.actions = getSet(set).actions;
-  console.log(robot.actions);
+  robot.brain = getSet(set).actions;
+  //console.log(robot.brain);
 }
 //find the actions
 function getSet(name){
@@ -341,10 +404,16 @@ function getSet(name){
 }
 
 //decides how to walk
-function compass(actions){
+function compass(robot){
 
 }
 
+//brain blast!
+function think(robot, action){
+  if(action == "health"){
+    goTo(robot)
+  }
+}
 
 //random walking
 function drunkardsWalk(robot){
@@ -398,6 +467,31 @@ function drawTreeBottom(){
             (x * size) - 4, (y * size) - 8, 
             treeBottom.width, treeBottom.height);
       }
+    }
+  }
+}
+
+//rendering function for the items
+function drawItems(){
+  for(var a = 0; a < itemSet.length; a++){
+    var it = itemSet[a];
+
+    if(it.name == "apple"){
+      it.img = appleIMG;
+      it.imgReady = appleReady;
+      it.dispX = 4;
+      it.dispY = 6;
+      it.spec = "health";
+      it.value = 5;
+    }
+
+
+    if(it.imgReady && it.show){
+      ctx.drawImage(it.img, 0, 0, 
+                it.img.width, it.img.height,
+                (it.x * size) + it.dispX, 
+                (it.y * size) + it.dispY,
+                it.img.width, it.img.height);
     }
   }
 }
@@ -494,6 +588,9 @@ function render(){
   //draw tree trunk
   drawTreeBottom();
 
+  //draw the items
+  drawItems();
+
   //draw the robot
   drawBot();
 
@@ -526,6 +623,7 @@ function main(){
   terrainTrek(bot);
   finderArrow(bot);
   atWorldsEnd(bot);
+  pickup(bot);
 
   //settings debugger screen
   var pixX = Math.floor(bot.x / size);
