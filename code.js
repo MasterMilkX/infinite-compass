@@ -59,8 +59,15 @@ var bot = {
   ready : botReady,
   brain : [],
 
+  //advance properties
+  health : 100,
+  target : null,
+  priority : "none",
+  pathQueue : [],
+
   //movement
   speed : 2,
+  maxSpeed : 2,
   x : 9 * size, 
   y : 9 * size,
   velX : 0,
@@ -93,6 +100,10 @@ arrowIMG.onload = new function(){arrowReady = true;}
 //////////////////////       ITEM FUNCTIONS       //////////////
 
 var itemSet = [];
+var foodSet = [];
+var moneySet = [];
+var weaponSet = [];
+var enemySet = [];
 
 //generic function for all items
 function item(name, x, y){
@@ -116,13 +127,51 @@ appleIMG.src = "sprites/apple.png";
 appleIMG.onload = new function(){appleReady = true;}
 
 
-//initiate the items at random points on the map
-function makeItems(num, name){
+////////   item functions   ////////
+//resets all the groups
+function resetSets(){
   itemSet = [];
-  for(var a = 0; a < num; a++){
-    var x = Math.floor(Math.random() * cols);
-    var y = Math.floor(Math.random() * rows);
-    itemSet.push(new item(name, x, y));
+  foodSet = [];
+  moneySet = [];
+  weaponSet = [];
+  enemySet = [];
+}
+
+//initiate food items
+function itemProb(name, max){
+  this.name = name;
+  this.max = max;
+}
+
+//initiate the food items
+function makeFoods(probs){
+  for(var f = 0; f < probs.length; f++){
+    var genNum = Math.floor(Math.random() * (probs[f].max + 1));
+    for(var n = 0; n < genNum; n++){
+      var x = Math.floor(Math.random() * cols);
+      var y = Math.floor(Math.random() * rows);
+      var it;
+      if(probs[f].name == "apple"){
+        it = new item("apple", x, y);
+        it.img = appleIMG;
+        it.imgReady = appleReady;
+        it.dispX = 4;
+        it.dispY = 6;
+        it.spec = "health";
+        it.value = 5;
+      }
+      itemSet.push(it);
+      foodSet.push(it);
+    }
+  }
+}
+
+//organize items by category
+function organizeItems(){
+  for(var a = 0; a < itemSet.length; a++){
+    var myItem = itemSet[a];
+    if(myItem.name == "apple")
+      foodSet.push(myItem);
   }
 }
 
@@ -257,9 +306,10 @@ function braveNewWorld(direction, robot){
   }
 
   blankMap();
-  addNature(3, 1, 0.2, 0.01);                         //water
-  addNature(4, 3, 0.25, 0.02);                        //tree
-  makeItems(Math.floor(Math.random * 11), "apple");   //apple
+  resetSets();
+  addNature(3, 1, 0.2, 0.01);               //water
+  addNature(4, 3, 0.25, 0.02);              //tree
+  makeFoods([new itemProb("apple", 5)]);    //foods
 }
 //generates a new world map with bot starting from a point
 function braveNewWorld2(robot, x, y, spec){
@@ -267,10 +317,10 @@ function braveNewWorld2(robot, x, y, spec){
   robot.y = size * y;
   moving = false;
   blankMap(); 
-  addNature(3, 1, 0.2, 0.01);                         //water
-  addNature(4, 3, 0.25, 0.02);                        //tree
-  //makeItems(Math.floor(Math.random * 11), "apple");   //apple
-  makeItems(5, "apple");   //apple
+  resetSets();
+  addNature(3, 1, 0.2, 0.01);                //water
+  addNature(4, 3, 0.25, 0.02);               //tree
+  makeFoods([new itemProb("apple", 5)]);     //foods 
 
 }
 
@@ -377,17 +427,82 @@ function terrainTrek(robot){
 
   if(posX >= 0 && posY >= 0 && posX < cols && posY < rows){
     if(map[posY][posX] == 1){           //water
-      robot.speed = 1;
+      robot.speed = robot.maxSpeed / 2;
     }else if(map[posY][posX] == 2){     //sand-dirt
-      robot.speed = 1;
+      robot.speed = robot.maxSpeed / 2;
     }else{                              //grass
-      robot.speed = 2;
+      robot.speed = robot.maxSpeed;
     }
   }
 }
 
 
 ////////   AI DECISION MAKING   ////////
+
+//act upon the robot pathQueue
+function smallStep(robot){
+  if(robot.pathQueue.length != 0 && !moving){       //if not already moving and not an empty pathQueue
+    var nextStep = robot.pathQueue[0];
+    var curX = Math.floor(robot.x / 16);
+    var curY = Math.floor(robot.y / 16);
+
+    //changing y pos
+    if(curX == nextStep[0]){
+      if(nextStep[1] < curY)
+        goNorth(robot);
+      else if(nextStep[1] > curY)
+        goSouth(robot);
+    }   
+    //changing x pos    
+    else if(curY == nextStep[1]){
+      if(nextStep[0] < curX)
+        goWest(robot);
+      else if(nextStep[0] > curX)
+        goEast(robot);
+    }
+    //remove the node once reached
+    robot.pathQueue.shift();
+  }
+}
+
+
+function circleUp(robot, radius){
+  //reset the properties
+  var initX = Math.floor(robot.x / 16);
+  var initY = Math.floor(robot.y / 16);
+  var linePath = [];
+  var last;
+  robot.pathQueue = [];
+
+  //make waypoints
+  linePath.push([initX, initY]);        //initial position
+
+  //add r waypoints north
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0], last[1] - 1]);
+  }
+  //add r waypoints east
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0] - 1, last[1]]);
+  }
+  //add r waypoints south
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0], last[1] + 1]);
+  }
+  //add r waypoints west
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0] + 1, last[1]]);
+  }
+  
+  //add all to robot's path pathQueue [override]
+  robot.pathQueue = linePath;
+}
+
+
 
 //import the actions
 function makeACompass(robot, set){
@@ -432,6 +547,28 @@ function drunkardsWalk(robot){
   }
 }
 
+//go to closest object
+function gotoClosest(robot, group){
+  var dists = [];
+  var botX = Math.floor(robot.x / size);
+  var botY = Math.floor(robot.y / size);
+
+  for(var d = 0; d < group.length; d++){
+    var distX = Math.abs(botX - group[d].x);
+    var distY = Math.abs(botY - group[d].y);
+    var distTot = distX + distY;
+    dists.push(distTot);
+  }
+  var smallest = 0;
+  for(var e = 0; e < dists.length; e++){
+    if(dists[smallest] > dists[e]){
+      smallest = e;
+    }
+  }
+  return group[smallest];
+}
+
+
 
 /////////////////////////DRAWING AND RENDERING//////////////////////////
 //rendering function for the map
@@ -475,16 +612,6 @@ function drawTreeBottom(){
 function drawItems(){
   for(var a = 0; a < itemSet.length; a++){
     var it = itemSet[a];
-
-    if(it.name == "apple"){
-      it.img = appleIMG;
-      it.imgReady = appleReady;
-      it.dispX = 4;
-      it.dispY = 6;
-      it.spec = "health";
-      it.value = 5;
-    }
-
 
     if(it.imgReady && it.show){
       ctx.drawImage(it.img, 0, 0, 
@@ -620,6 +747,7 @@ function main(){
   //drunkardsWalk();
 
   travel(bot);
+  smallStep(bot);
   terrainTrek(bot);
   finderArrow(bot);
   atWorldsEnd(bot);
