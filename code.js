@@ -342,28 +342,28 @@ var initPos;
 var moving;
 function goNorth(robot){
   if(!moving){
-    initPos = Math.floor(robot.y);
+    initPos = Math.floor(robot.y / size) * size;
     robot.dir = "north";
     robot.action = "travel";
   }
 }
 function goSouth(robot){
   if(!moving){
-    initPos = Math.floor(robot.y);
+    initPos = Math.floor(robot.y / size) * size;
     robot.dir = "south";
     robot.action = "travel";
   }
 }
 function goEast(robot){
   if(!moving){
-    initPos = Math.floor(robot.x);
+    initPos = Math.floor(robot.x / size) * size;
     robot.dir = "east";
     robot.action = "travel";
   }
 }
 function goWest(robot){
   if(!moving){
-    initPos = Math.floor(robot.x);
+    initPos = Math.floor(robot.x / size) * size;
     robot.dir = "west";
     robot.action = "travel";
   }
@@ -534,6 +534,7 @@ function compass(robot){
   var objective = think(robot, plan);
   if(objective == "done"){
     robot.thinkIndex++;
+    console.log("next obj");
   }else{
     processDir(robot, objective);
   }
@@ -588,13 +589,14 @@ function gotoClosest(robot, group){
     return null;
 
   //check if all of the elements are gone
-  var gone = true;
+  var goodSet = [];
   for(var f = 0; f < group.length; f++){
     if(group[f].show)
-      gone = false;
+      goodSet.push(group[f]);
   }
-  if(gone)
+  if(goodSet.length == 0)
     return null;
+
   //otherwise find the closest
   else{
     var dists = [];
@@ -602,13 +604,11 @@ function gotoClosest(robot, group){
     var botY = Math.floor(robot.y / size);
 
     //get the total distance for each item
-    for(var d = 0; d < group.length; d++){
-      var distX = Math.abs(botX - group[d].x);
-      var distY = Math.abs(botY - group[d].y);
+    for(var d = 0; d < goodSet.length; d++){
+      var distX = Math.abs(botX - goodSet[d].x);
+      var distY = Math.abs(botY - goodSet[d].y);
       var distTot = distX + distY;
-
-      if(group[d].show)
-        dists.push(distTot);
+      dists.push(distTot);
     }
     var smallest = 0;
     for(var e = 0; e < dists.length; e++){
@@ -616,7 +616,7 @@ function gotoClosest(robot, group){
         smallest = e;
       }
     }
-    return group[smallest];
+    return goodSet[smallest];
   }
 }
 
@@ -828,8 +828,8 @@ function main(){
     compass(bot);
 
   //settings debugger screen
-  var pixX = Math.floor(bot.x / size);
-  var pixY = Math.floor(bot.y / size);
+  var pixX = Math.round(bot.x / size);
+  var pixY = Math.round(bot.y / size);
   var obj;
   if(bot.thinkIndex < bot.brain.length)
     obj = bot.brain[bot.thinkIndex];

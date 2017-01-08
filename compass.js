@@ -3,6 +3,8 @@
 ///   PATHFINDING    ///
 ////////////////////////
 
+var p;
+
 function gotoDumb(robot, target, map, mapSize){
   //if no target move on
   if(target == null)
@@ -48,12 +50,14 @@ function gotoDumb(robot, target, map, mapSize){
 
   //make a path from the area
   var path = findPath(robotPos, targetPos, closedCells, parents);
+  p = path;
   //if the path isn't unreachable or empty
   if(path.length != 0 && !arrEq(path[0], [-1,-1])){
     //make next decision
     return followPath(robotPos, path[path.length - 1]);
   }else{
     //cannot move anywhere
+    console.log("end of the road");
     return "done";
   }
 }
