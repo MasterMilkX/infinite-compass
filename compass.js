@@ -29,7 +29,22 @@ function gotoDumb(robot, target, map){
 
   //////   BFS algorithm  ////////
   while(index < frontier.length){
-    findAreaBFS(index, frontier, closedCells, parents, map);
+      //get the neighbors of the node
+      var neighbors = getMapNeighbors(frontier[index], map);
+      
+      //go through the neighbors of the node
+      for(var t = 0; t < neighbors.length; t++){
+        if(!inClosedCells(neighbors[t], closedCells)){
+          closedCells.push(neighbors[t]);
+          frontier.push(neighbors[t]);
+          if(!inParents(neighbors[t], parents)){
+            var family = [frontier[index], neighbors[t]];     //parent then child
+            parents.push(family);
+          }
+        }
+
+      index++;
+    }
   }
 
   //make a path from the area
@@ -41,25 +56,6 @@ function gotoDumb(robot, target, map){
   }else{
     //cannot move anywhere
     return "done";
-  }
-}
-
-function findAreaBFS(index, frontier, closedCells, parents, map){
-  if(index < frontier.length){
-    var neighbors = getMapNeighbors(frontier[index], map);
-
-    for(var t = 0; t < neighbors.length; t++){
-      if(!inClosedCells(neighbors[t], closedCells)){
-        closedCells.push(neighbors[t]);
-        frontier.push(neighbors[t]);
-        if(!inParents(neighbors[t], parents)){
-          var family = [frontier[index], neighbors[t]];     //parent then child
-          parents.push(family);
-        }
-      }
-    }
-      
-    index++;
   }
 }
 
