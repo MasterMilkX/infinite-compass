@@ -601,6 +601,7 @@ function gotoClosest(robot, group){
     var botX = Math.floor(robot.x / size);
     var botY = Math.floor(robot.y / size);
 
+    //get the total distance for each item
     for(var d = 0; d < group.length; d++){
       var distX = Math.abs(botX - group[d].x);
       var distY = Math.abs(botY - group[d].y);
@@ -611,7 +612,7 @@ function gotoClosest(robot, group){
     }
     var smallest = 0;
     for(var e = 0; e < dists.length; e++){
-      if(dists[smallest] > dists[e] && dists[e].show){
+      if(dists[smallest] > dists[e]){
         smallest = e;
       }
     }
