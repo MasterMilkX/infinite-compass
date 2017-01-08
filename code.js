@@ -49,7 +49,7 @@ botIMG.onload = function(){botReady = true;};
 
 //bot object
 var bot = {
-  //properties
+  //sprite properties
   name : "shu",
   width : 32,
   height : 20,
@@ -57,13 +57,14 @@ var bot = {
   action: "idle",
   img : botIMG,
   ready : botReady,
-  brain : [],
 
   //advance properties
   health : 100,
   target : null,
   priority : "none",
   pathQueue : [],
+  brain : [],
+  thinkIndex : 0,
 
   //movement
   speed : 2,
@@ -305,11 +306,13 @@ function braveNewWorld(direction, robot){
     initPos = -size;
   }
 
+  
   blankMap();
   resetSets();
   addNature(3, 1, 0.2, 0.01);               //water
   addNature(4, 3, 0.25, 0.02);              //tree
   makeFoods([new itemProb("apple", 5)]);    //foods
+  resetBot(bot);
 }
 //generates a new world map with bot starting from a point
 function braveNewWorld2(robot, x, y, spec){
@@ -329,6 +332,12 @@ braveNewWorld2(bot, 9, 9, "none");
 
 
 ///////////////            BOT FUNCTIONS             ///////////
+
+function resetBot(robot){
+  robot.thinkIndex = 0;
+  robot.pathQueue = [];
+}
+
 var initPos;
 var moving;
 function goNorth(robot){
@@ -465,7 +474,7 @@ function smallStep(robot){
   }
 }
 
-
+//sample circle function
 function circleUp(robot, radius){
   //reset the properties
   var initX = Math.floor(robot.x / 16);
@@ -485,7 +494,7 @@ function circleUp(robot, radius){
   //add r waypoints east
   for(var a = 1; a < radius; a++){
     last = linePath[linePath.length - 1];
-    linePath.push([last[0] - 1, last[1]]);
+    linePath.push([last[0] + 1, last[1]]);
   }
   //add r waypoints south
   for(var a = 1; a < radius; a++){
@@ -495,7 +504,7 @@ function circleUp(robot, radius){
   //add r waypoints west
   for(var a = 1; a < radius; a++){
     last = linePath[linePath.length - 1];
-    linePath.push([last[0] + 1, last[1]]);
+    linePath.push([last[0] - 1, last[1]]);
   }
   
   //add all to robot's path pathQueue [override]
@@ -506,28 +515,52 @@ function circleUp(robot, radius){
 
 //import the actions
 function makeACompass(robot, set){
-  robot.brain = getSet(set).actions;
-  //console.log(robot.brain);
-}
-//find the actions
-function getSet(name){
   for(var a = 0; a < botSets.length; a++){
-    if(botSets[a].name == name){
-      return botSets[a];
+    if(botSets[a].name == set){
+      robot.brain = botSets[a].actions;
     }
   }
 }
 
 //decides how to walk
+var useCompass = true;
 function compass(robot){
+  //if out of options
+  if(robot.thinkIndex >= robot.brain.length){
+    processDir(robot, gotoEdge(robot));
+  }
 
+  var plan = robot.brain[robot.thinkIndex];
+  var objective = think(robot, plan);
+  if(objective == "done"){
+    robot.thinkIndex++;
+  }else{
+    processDir(robot, objective);
+  }
 }
 
 //brain blast!
 function think(robot, action){
   if(action == "health"){
-    goTo(robot)
+    return gotoDumb(robot, gotoClosest(robot, foodSet), map);
   }
+  return "done";
+}
+
+function processDir(robot, dir){
+  //reset the properties
+  var initX = Math.floor(robot.x / 16);
+  var initY = Math.floor(robot.y / 16);
+
+  //add the next to the robot queue
+  if(dir == "north")
+    robot.pathQueue.push([initX, initY - 1]);
+  else if(dir == "south")
+    robot.pathQueue.push([initX, initY + 1]);
+  else if(dir == "east")
+    robot.pathQueue.push([initX - 1, initY]);
+  else if(dir == "west")
+    robot.pathQueue.push([initX + 1, initY]);
 }
 
 //random walking
@@ -549,6 +582,9 @@ function drunkardsWalk(robot){
 
 //go to closest object
 function gotoClosest(robot, group){
+  if(group.length == 0)
+    return null;
+
   var dists = [];
   var botX = Math.floor(robot.x / size);
   var botY = Math.floor(robot.y / size);
@@ -561,13 +597,30 @@ function gotoClosest(robot, group){
   }
   var smallest = 0;
   for(var e = 0; e < dists.length; e++){
-    if(dists[smallest] > dists[e]){
+    if(dists[smallest] > dists[e] && dists[e].show){
       smallest = e;
     }
   }
   return group[smallest];
 }
 
+//go to the closest side of the edge of the screen
+function gotoEdge(robot){
+  var coordX = Math.floor(robot.x / 16) - (map[0].length/2);
+  var coordY = Math.floor(robot.y / 16) - (map.length/2);
+
+  if(Math.abs(coordX) > Math.abs(coordY)){    //more horizontal
+    if(coordX > 0)
+      return "east";
+    else
+      return "west";
+  }else{                                      //more vertical
+    if(coordY > 0)
+      return "south";
+    else
+      return "north";
+  }
+}
 
 
 /////////////////////////DRAWING AND RENDERING//////////////////////////
@@ -716,13 +769,15 @@ function render(){
   drawTreeBottom();
 
   //draw the items
-  drawItems();
+  //drawItems();
 
   //draw the robot
   drawBot();
 
   //draw tree tops
   drawTreeTop();
+
+    drawItems();
 
   //draw the arrow to find the robot
   drawArrow(bot);
@@ -753,12 +808,21 @@ function main(){
   atWorldsEnd(bot);
   pickup(bot);
 
+  if(useCompass && !moving)
+    compass(bot);
+
   //settings debugger screen
   var pixX = Math.floor(bot.x / size);
   var pixY = Math.floor(bot.y / size);
+  var obj;
+  if(bot.thinkIndex < bot.brain.length)
+    obj = bot.brain[bot.thinkIndex];
+  else
+    obj = "edge";
 
   var settings = "X: " + Math.round(bot.x) + " | Y: " + Math.round(bot.y);
   settings += " --- Pix X: " + pixX + " | Pix Y: " + pixY;
+  settings += " ---- Compass: " + obj;
   document.getElementById('botSettings').innerHTML = settings;
 }
 
