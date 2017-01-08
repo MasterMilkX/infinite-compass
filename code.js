@@ -542,9 +542,10 @@ function compass(robot){
 //brain blast!
 function think(robot, action){
   if(action == "health"){
-    return gotoDumb(robot, gotoClosest(robot, foodSet), map);
+    return gotoDumb(robot, gotoClosest(robot, foodSet), map, size);
+  }else{
+    return "done";
   }
-  return "done";
 }
 
 function processDir(robot, dir){
@@ -582,32 +583,46 @@ function drunkardsWalk(robot){
 
 //go to closest object
 function gotoClosest(robot, group){
+  //check if any elements
   if(group.length == 0)
     return null;
 
-  var dists = [];
-  var botX = Math.floor(robot.x / size);
-  var botY = Math.floor(robot.y / size);
+  //check if all of the elements are gone
+  var gone = true;
+  for(var f = 0; f < group.length; f++){
+    if(group[f].show)
+      gone = false;
+  }
+  if(gone)
+    return null;
+  //otherwise find the closest
+  else{
+    var dists = [];
+    var botX = Math.floor(robot.x / size);
+    var botY = Math.floor(robot.y / size);
 
-  for(var d = 0; d < group.length; d++){
-    var distX = Math.abs(botX - group[d].x);
-    var distY = Math.abs(botY - group[d].y);
-    var distTot = distX + distY;
-    dists.push(distTot);
-  }
-  var smallest = 0;
-  for(var e = 0; e < dists.length; e++){
-    if(dists[smallest] > dists[e] && dists[e].show){
-      smallest = e;
+    for(var d = 0; d < group.length; d++){
+      var distX = Math.abs(botX - group[d].x);
+      var distY = Math.abs(botY - group[d].y);
+      var distTot = distX + distY;
+
+      if(group[d].show)
+        dists.push(distTot);
     }
+    var smallest = 0;
+    for(var e = 0; e < dists.length; e++){
+      if(dists[smallest] > dists[e] && dists[e].show){
+        smallest = e;
+      }
+    }
+    return group[smallest];
   }
-  return group[smallest];
 }
 
 //go to the closest side of the edge of the screen
 function gotoEdge(robot){
-  var coordX = Math.floor(robot.x / 16) - (map[0].length/2);
-  var coordY = Math.floor(robot.y / 16) - (map.length/2);
+  var coordX = Math.round(robot.x / size) - (map[0].length/2);
+  var coordY = Math.round(robot.y / size) - (map.length/2);
 
   if(Math.abs(coordX) > Math.abs(coordY)){    //more horizontal
     if(coordX > 0)

@@ -3,7 +3,7 @@
 ///   PATHFINDING    ///
 ////////////////////////
 
-function gotoDumb(robot, target, map){
+function gotoDumb(robot, target, map, mapSize){
   //if no target move on
   if(target == null)
     return "done";
@@ -16,8 +16,8 @@ function gotoDumb(robot, target, map){
   var parents = [];
 
   //position variables
-  var robotX = Math.floor(robot.x / 16);
-  var robotY = Math.floor(robot.y / 16);
+  var robotX = Math.round(robot.x / mapSize);
+  var robotY = Math.round(robot.y / mapSize);
   var targetX = target.x;
   var targetY = target.y ;
   var robotPos = [robotX, robotY];
@@ -29,28 +29,27 @@ function gotoDumb(robot, target, map){
 
   //////   BFS algorithm  ////////
   while(index < frontier.length){
-      //get the neighbors of the node
-      var neighbors = getMapNeighbors(frontier[index], map);
-      
-      //go through the neighbors of the node
-      for(var t = 0; t < neighbors.length; t++){
-        if(!inClosedCells(neighbors[t], closedCells)){
-          closedCells.push(neighbors[t]);
-          frontier.push(neighbors[t]);
-          if(!inParents(neighbors[t], parents)){
-            var family = [frontier[index], neighbors[t]];     //parent then child
-            parents.push(family);
-          }
-        }
+    //get the neighbors of the node - north,south,east,west
+    var neighbors = getMapNeighbors(frontier[index], map);
 
-      index++;
+    //go through the neighbors of the node
+    for(var t = 0; t < neighbors.length; t++){
+      if(!inClosedCells(neighbors[t], closedCells)){
+        closedCells.push(neighbors[t]);
+        frontier.push(neighbors[t]);
+        if(!inParents(neighbors[t], parents)){
+          var family = [frontier[index], neighbors[t]];     //parent then child
+          parents.push(family);
+        }
+      }
     }
+    index++;
   }
 
   //make a path from the area
   var path = findPath(robotPos, targetPos, closedCells, parents);
   //if the path isn't unreachable or empty
-  if(!arrEq(path[0], [-1,-1]) && path.length != 0){
+  if(path.length != 0 && !arrEq(path[0], [-1,-1])){
     //make next decision
     return followPath(robotPos, path[path.length - 1]);
   }else{
@@ -89,19 +88,20 @@ function followPath(curPos, nextPos){
 //get the north, south, east, and west positions of the node from the map
 function getMapNeighbors(pos, map){
   var neighbor = [];
+
   var north = [pos[0], pos[1]-1];
   var east = [pos[0]+1, pos[1]];
   var south = [pos[0], pos[1]+1];
   var west = [pos[0]-1, pos[1]];
 
   //check if the nodes exist - if so, add them to the neighbor list
-  if(((pos[1] - 1) >= 0) && (map[pos[1] -1][pos[0]] != 1))
+  if(((pos[1] - 1) >= 0))
     neighbor.push(north);
-  if(((pos[0] - 1) >= 0) && (map[pos[1]][pos[0] - 1] != 1))
+  if(((pos[0] - 1) >= 0))
     neighbor.push(west);
-  if(((pos[1] + 1) < map.length) && (map[pos[1] +1][pos[0]] != 1))
+  if(((pos[1] + 1) < map.length))
     neighbor.push(south);
-  if(((pos[0] + 1) < map[0].length) && (map[pos[1]][pos[0] + 1] != 1))
+  if(((pos[0] + 1) < map[0].length))
     neighbor.push(east);
   
   return neighbor;
