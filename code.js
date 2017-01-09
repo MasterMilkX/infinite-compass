@@ -374,7 +374,7 @@ function travel(robot){
     if(robot.dir == "north"){
       if(Math.floor(robot.y) > (initPos - size)){
         robot.velY = robot.speed;
-        robot.y -= robot.velY;
+        robot.y += velControl(Math.floor(robot.y), -robot.velY, (initPos - size));
         moving = true;
       }else{
         robot.velY = 0;
@@ -384,7 +384,7 @@ function travel(robot){
     }else if(robot.dir == "south"){
       if(Math.floor(robot.y) < (initPos + size)){
         robot.velY = robot.speed;
-        robot.y += robot.velY;
+        robot.y += velControl(Math.floor(robot.y), robot.velY, (initPos + size));;
         moving = true;
       }else{
         robot.velY = 0;
@@ -394,7 +394,7 @@ function travel(robot){
     }else if(robot.dir == "east"){
       if(Math.floor(robot.x) < (initPos + size)){
         robot.velX = robot.speed;
-        robot.x += robot.velX;
+        robot.x += velControl(Math.floor(robot.x), robot.velX, (initPos + size));
         moving = true;
       }else{
         robot.velX = 0;
@@ -404,7 +404,7 @@ function travel(robot){
     }else if(robot.dir == "west"){
       if(Math.floor(robot.x) > (initPos - size)){
         robot.velX = robot.speed;
-        robot.x -= robot.velX;
+        robot.x += velControl(Math.floor(robot.x), -robot.velX, (initPos - size));;
         moving = true;
       }else{
         robot.velX = 0;
@@ -412,6 +412,24 @@ function travel(robot){
         moving = false;
       }
     }
+  }
+}
+
+//velocity control
+function velControl(cur, value, max){
+  //increment or decrement
+  if(value > 0){
+    if((cur + value) > max)
+      return velControl(cur, Math.floor(value/2), max);
+    else
+      return value;
+  }else if(value < 0){
+    if((cur + value) < max)
+      return velControl(cur, Math.floor(value/2), max);
+    else
+      return value;
+  }else{
+    return value;
   }
 }
 
@@ -534,7 +552,6 @@ function compass(robot){
   var objective = think(robot, plan);
   if(objective == "done"){
     robot.thinkIndex++;
-    console.log("next obj");
   }else{
     processDir(robot, objective);
   }
@@ -627,14 +644,26 @@ function gotoEdge(robot){
 
   if(Math.abs(coordX) > Math.abs(coordY)){    //more horizontal
     if(coordX > 0)
-      return "east";
-    else
       return "west";
-  }else{                                      //more vertical
+    else
+      return "east";
+  }else if(Math.abs(coordY) > Math.abs(coordX)){                                      //more vertical
     if(coordY > 0)
       return "south";
     else
       return "north";
+  }else{
+    if(coordX == 0 && coordY == 0)            //origin
+      return "north";
+    else if(coordX > 0 && coordY > 0){        //Q1
+      return "east";
+    }else if(coordX < 0 && coordY > 0){       //Q2
+      return "north";
+    }else if(coordX < 0 && coordY < 0){       //Q3
+      return "west";
+    }else if(coordX > 0 && coordY < 0){       //Q4
+      return "south";
+    }
   }
 }
 

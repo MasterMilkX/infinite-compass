@@ -57,7 +57,6 @@ function gotoDumb(robot, target, map, mapSize){
     return followPath(robotPos, path[path.length - 1]);
   }else{
     //cannot move anywhere
-    console.log("end of the road");
     return "done";
   }
 }
