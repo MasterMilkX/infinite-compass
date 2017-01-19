@@ -65,6 +65,7 @@ var bot = {
   pathQueue : [],
   brain : [],
   thinkIndex : 0,
+  money : 0,
 
   //movement
   speed : 2,
@@ -97,6 +98,9 @@ var arrowShow = false;
 arrowIMG.src = "sprites/arrow.png";
 arrowIMG.onload = new function(){arrowReady = true;}
 
+//simulation variables
+var log = "----SIMULATION START----\n";
+
 
 //////////////////////       ITEM FUNCTIONS       //////////////
 
@@ -118,6 +122,7 @@ function item(name, x, y){
   this.dispY = 0;
   this.spec;
   this.value;
+  this.offset;
 }
 
 ///// import all the image sprites ////// 
@@ -127,6 +132,17 @@ var appleReady = false;
 appleIMG.src = "sprites/apple.png";
 appleIMG.onload = new function(){appleReady = true;}
 
+//money bags
+var moneyIMG = new Image();
+var moneyReady = false;
+moneyIMG.src = "sprites/moneys.png";
+moneyIMG.onload = new function(){moneyReady = true;}
+
+//gems
+var gemIMG = new Image();
+var gemReady = false;
+gemIMG.src = "sprites/gems.png";
+gemIMG.onload = new function(){gemIMG = true;}
 
 ////////   item functions   ////////
 //resets all the groups
@@ -167,6 +183,37 @@ function makeFoods(probs){
   }
 }
 
+//make the money objects
+function makeMoney(probs){
+  for(var f = 0; f < probs.length; f++){
+    var genNum = Math.floor(Math.random() * (probs[f].max + 1));
+    for(var n = 0; n < genNum; n++){
+      var x = Math.floor(Math.random() * cols);
+      var y = Math.floor(Math.random() * rows);
+      var it;
+      if(probs[f].name == "bag"){
+        it = new item("bag", x, y);
+        it.img = moneyIMG;
+        it.imgReady = moneyReady;
+        it.dispX = 1;
+        it.dispY = 1;
+        it.spec = "money";
+        it.value = 50;
+      }else if(probs[f].name == "gem"){
+        it = new item("gem", x, y);
+        it.img = randomGem();
+        it.imgReady = gemReady;
+        it.dispX = 4;
+        it.dispY = 4;
+        it.spec = "money";
+        it.value = 50;
+      }
+      itemSet.push(it);
+      moneySet.push(it);
+    }
+  }
+}
+
 //organize items by category
 function organizeItems(){
   for(var a = 0; a < itemSet.length; a++){
@@ -182,6 +229,7 @@ function pickup(robot){
     var myItem = itemSet[a];
     if(isTouching(robot, myItem) && myItem.show){
       console.log(myItem.name + " get!");
+      newLog(myItem.name + " get!");
       myItem.show = false;
     }
   }
@@ -196,6 +244,15 @@ function isTouching(robot, item){
     return true;
   else
     return false;
+}
+
+//check if a certain item is in a certain group
+function inGroup(item, group){
+  for(var r = 0; r < group.length; r++){
+    if(group[r] == item)
+      return true;
+  }
+  return false;
 }
 
 
@@ -313,6 +370,7 @@ function braveNewWorld(direction, robot){
   addNature(4, 3, 0.25, 0.02);              //tree
   makeFoods([new itemProb("apple", 5)]);    //foods
   resetBot(bot);
+  newLog("next world!");
 }
 //generates a new world map with bot starting from a point
 function braveNewWorld2(robot, x, y, spec){
@@ -837,6 +895,11 @@ function render(){
 
 function init(){
   makeACompass(bot, 'a');
+  if(localStorage.simulCt)
+    localStorage.simulCt++;
+  else{
+    localStorage.simulCt = 1;
+  }
 }
 init();
 
@@ -871,5 +934,43 @@ function main(){
   document.getElementById('botSettings').innerHTML = settings;
 }
 
-main();
+
+//log functions
+function newLog(statement){
+  log += statement + "\n";
+}
+function downloadLog(){
+  var blob = new Blob([log], {type:"text/plain"});
+  var urlObj = window.URL.createObjectURL(blob);
+
+  var simulCt = localStorage.simulCt;
+  var fileName = "simulation_" + simulCt + ".log";
+
+
+  var downloader = document.createElement("a");
+  downloader.download = fileName;
+  downloader.innerHTML = "DOWNLOAD";
+  downloader.href = urlObj;
+  downloader.onclick = destroyBtn;
+  downloader.style.display = "none";
+  document.body.appendChild(downloader);
+  downloader.click();
+
+}
+
+function destroyBtn(ev){
+  document.body.removeChild(ev.target);
+}
+
+//stops the simulation
+var run = true;
+function stop(){
+  newLog("----SIMULATION FINISH----");
+  run = false;
+  useCompass = false;
+}
+
+if(run)
+  main();
+
 render();
