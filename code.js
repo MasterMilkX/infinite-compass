@@ -60,12 +60,14 @@ var bot = {
 
   //advance properties
   health : 100,
+  maxHealth : 100,
   target : null,
   priority : "none",
   pathQueue : [],
   brain : [],
   thinkIndex : 0,
-  money : 0,
+  wallet : 0,
+  weapon : null,
 
   //movement
   speed : 2,
@@ -120,9 +122,12 @@ function item(name, x, y){
   this.imgReady;
   this.dispX = 0;
   this.dispY = 0;
+  this.imageW;
+  this.imageH;
   this.spec;
   this.value;
-  this.offset;
+  this.offset = 0;
+  this.size;
 }
 
 ///// import all the image sprites ////// 
@@ -141,8 +146,11 @@ moneyIMG.onload = new function(){moneyReady = true;}
 //gems
 var gemIMG = new Image();
 var gemReady = false;
-gemIMG.src = "sprites/gems.png";
-gemIMG.onload = new function(){gemIMG = true;}
+gemIMG.src = "sprites/gems2.png";
+gemIMG.onload = new function(){gemReady = true;}
+
+var gemList = ["copper", "sapphire", "emerald", "ruby",
+              "bronze", "silver", "gold", "platinum", "diamond"];
 
 ////////   item functions   ////////
 //resets all the groups
@@ -174,6 +182,8 @@ function makeFoods(probs){
         it.imgReady = appleReady;
         it.dispX = 4;
         it.dispY = 6;
+        it.imageW = it.img.width;
+        it.imageH = it.img.height;
         it.spec = "health";
         it.value = 5;
       }
@@ -183,36 +193,97 @@ function makeFoods(probs){
   }
 }
 
-//make the money objects
-function makeMoney(probs){
-  for(var f = 0; f < probs.length; f++){
-    var genNum = Math.floor(Math.random() * (probs[f].max + 1));
-    for(var n = 0; n < genNum; n++){
-      var x = Math.floor(Math.random() * cols);
-      var y = Math.floor(Math.random() * rows);
-      var it;
-      if(probs[f].name == "bag"){
-        it = new item("bag", x, y);
-        it.img = moneyIMG;
-        it.imgReady = moneyReady;
-        it.dispX = 1;
-        it.dispY = 1;
-        it.spec = "money";
-        it.value = 50;
-      }else if(probs[f].name == "gem"){
-        it = new item("gem", x, y);
-        it.img = randomGem();
-        it.imgReady = gemReady;
-        it.dispX = 4;
-        it.dispY = 4;
-        it.spec = "money";
-        it.value = 50;
-      }
-      itemSet.push(it);
-      moneySet.push(it);
+//generate money objects
+function makeMoney(max){
+  var genNum = Math.floor(Math.random() * (max + 1));
+  for(var n = 0; n < genNum; n++){
+    var cashType = randomCash();
+    var x = Math.floor(Math.random() * cols);
+    var y = Math.floor(Math.random() * rows);
+    var it;
+    if(cashType == "jackpot"){
+      it = new item(cashType, x, y);
+      it.img = moneyIMG;
+      it.imgReady = moneyReady;
+      it.dispX = 1;
+      it.dispY = 1;
+      it.imageW = it.img.width;
+      it.imageH = it.img.height;
+      it.spec = "jackpot";
+      it.value = 250;
+    }else{
+      it = new item(cashType, x, y);
+      it.img = gemIMG;
+      it.imgReady = gemReady;
+      it.dispX = 4;
+      it.dispY = 4;
+      it.imageW = 6;
+      it.imageH = 6;
+      it.spec = "gem";
+      it.value = getMoneyValue(cashType);
+      it.offset = getGemOffset(cashType) * it.imageW;
     }
+    itemSet.push(it);
+    moneySet.push(it);
   }
+}  
+
+//returns the gem based on the probability
+function randomCash(){
+  var gemProb = Math.floor(Math.random() * 101);
+  if(gemProb < 50)
+    return "copper";
+  else if(gemProb < 59)
+    return "sapphire";
+  else if(gemProb < 68)
+    return "emerald";
+  else if(gemProb < 77)
+    return "ruby";
+  else if(gemProb < 86)
+    return "bronze";
+  else if(gemProb < 91)
+    return "silver";
+  else if(gemProb < 95)
+    return "gold";
+  else if(gemProb < 97)
+    return "platinum";
+  else if(gemProb < 99)
+    return "diamond";
+  else 
+    return "jackpot";
 }
+
+//returns monetary value
+function getMoneyValue(name){
+  if(name == "copper")
+    return 1;
+  else if(name == "sapphire")
+    return 5;
+  else if(name == "emerald")
+    return 5;
+  else if(name == "ruby")
+    return 5;
+  else if(name == "bronze")
+    return 5;
+  else if(name == "silver")
+    return 10;
+  else if(name == "gold")
+    return 25;
+  else if(name == "platinum")
+    return 50;
+  else if(name == "diamond")
+    return 100;
+}
+
+//return offset of the gem
+function getGemOffset(gem){
+  for(var g = 0; g < gemList.length; g++){
+    if(gem == gemList[g])
+      return g;
+  }
+  return 0;
+}
+
 
 //organize items by category
 function organizeItems(){
@@ -220,6 +291,8 @@ function organizeItems(){
     var myItem = itemSet[a];
     if(myItem.name == "apple")
       foodSet.push(myItem);
+    else if(myItem.spec == "gem" || myItem.spec == "jackpot")
+      moneySet.push(myItem);
   }
 }
 
@@ -228,6 +301,15 @@ function pickup(robot){
   for(var a = 0; a < itemSet.length; a++){
     var myItem = itemSet[a];
     if(isTouching(robot, myItem) && myItem.show){
+
+      if(inGroup(myItem, foodSet)){
+        if(robot.health < 100)
+          robot.health += myItem.value;
+      }
+      else if(inGroup(myItem, moneySet))
+        robot.wallet += myItem.value;
+
+
       console.log(myItem.name + " get!");
       newLog(myItem.name + " get!");
       myItem.show = false;
@@ -369,6 +451,7 @@ function braveNewWorld(direction, robot){
   addNature(3, 1, 0.2, 0.01);               //water
   addNature(4, 3, 0.25, 0.02);              //tree
   makeFoods([new itemProb("apple", 5)]);    //foods
+  makeMoney(7);
   resetBot(bot);
   newLog("next world!");
 }
@@ -382,7 +465,7 @@ function braveNewWorld2(robot, x, y, spec){
   addNature(3, 1, 0.2, 0.01);                //water
   addNature(4, 3, 0.25, 0.02);               //tree
   makeFoods([new itemProb("apple", 5)]);     //foods 
-
+  makeMoney(7);
 }
 
 //start screen
@@ -607,6 +690,7 @@ function compass(robot){
   }
 
   var plan = robot.brain[robot.thinkIndex];
+  robot.priority = plan;
   var objective = think(robot, plan);
   if(objective == "done"){
     robot.thinkIndex++;
@@ -617,8 +701,10 @@ function compass(robot){
 
 //brain blast!
 function think(robot, action){
-  if(action == "health"){
+  if(action == "health" && robot.health < 100){
     return gotoDumb(robot, gotoClosest(robot, foodSet), map, size);
+  }else if(action == "money"){
+    return gotoDumb(robot, gotoClosest(robot, moneySet), map, size);
   }else{
     return "done";
   }
@@ -770,11 +856,11 @@ function drawItems(){
     var it = itemSet[a];
 
     if(it.imgReady && it.show){
-      ctx.drawImage(it.img, 0, 0, 
-                it.img.width, it.img.height,
+      ctx.drawImage(it.img, it.offset, 0, 
+                it.imageW, it.imageH,
                 (it.x * size) + it.dispX, 
                 (it.y * size) + it.dispY,
-                it.img.width, it.img.height);
+                it.imageW, it.imageH);
     }
   }
 }
@@ -918,6 +1004,9 @@ function main(){
 
   if(useCompass && !moving)
     compass(bot);
+
+  if(bot.health > bot.maxHealth)
+    bot.health = bot.maxHealth
 
   //settings debugger screen
   var pixX = Math.round(bot.x / size);

@@ -6,7 +6,7 @@
   <body>
     <div id="settings">
       <!--<input id="levelSelect" type="file" onchange="getLevel();">-->
-      <img src="sprites/title.png" height="30">
+      <img src="sprites/title.png" height="25" style="margin-top:7px">
       <!--<button onclick="randomMap()">Press me!</button>-->
       <!--
       <button onclick="goNorth(bot)">North</button>
@@ -16,9 +16,13 @@
       <button onclick="circleUp(bot, 4)">Circle Up!</button>
       <button onclick="console.log(gotoClosest(bot, foodSet))">Food</button>
       -->
+      <input type="text" id="godTerminal"
+      style="color:#ff0000;background-color:#000000;
+      border:1px solid #dedede;margin-left:5px;margin-right:5px" 
+      size="30">
 
       <button onclick="stop()" id="simulStop">Finish</button>
-      <button onclick="downloadLog()" id="logSave">Get Log</button>
+      <button onclick="downloadLog()" id="logSave">Save Story</button>
 
 
       <p id="botSettings">...</p>
