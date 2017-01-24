@@ -20,7 +20,7 @@ var botSets = [
 ];
 
 var botStats = [
-	new stat("a", [new prop("maxHealth", 200),
+	new stat("a", [	  new prop("maxHealth", 200),
 					  new prop("minMoney", 10),
 					  new prop("pathFind", "smart")])
 ];

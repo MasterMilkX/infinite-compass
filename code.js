@@ -39,7 +39,7 @@ bgPNG.onload = function(){
   ctx.drawImage(bgPNG, 0, 0);
 };
 
-//bot variables
+///////////////    ROBOT VARIABLES    ///////////////
 
 //bot image properties
 var botIMG = new Image();
@@ -57,6 +57,8 @@ var bot = {
   action: "idle",
   img : botIMG,
   ready : botReady,
+  offsetX : 8,
+  offsetY : 4,
 
   //advance properties
   health : 100,
@@ -64,14 +66,24 @@ var bot = {
   target : null,
   priority : "none",
   pathQueue : [],
+  route : "dumb",
   brain : [],
   thinkIndex : 0,
   wallet : 0,
+  minCash : 0,
   weapon : null,
+
+  //collection values
+  kills : 0,
+  moneyCol : 0,
+  foodCol : 0,
+  levels : 0,
 
   //movement
   speed : 2,
   maxSpeed : 2,
+  initPos : 0,
+  moving : false,
   x : 9 * size, 
   y : 9 * size,
   velX : 0,
@@ -93,6 +105,63 @@ var bot = {
   ct : 0
 };
 
+
+//knight image properties
+var knightIMG = new Image();
+knightIMG.src = "sprites/knight2.png";
+var knightReady = false;
+knightIMG.onload = function(){knightReady = true;};
+
+//knight object
+function knight(x, y){
+  //sprite properties
+  this.name = "knight";
+  this.width = 16;
+  this.height = 20;
+  this.dir = "south";
+  this.action= "idle";
+  this.img = knightIMG;
+  this.ready = knightReady;
+  this.offsetX = 0;
+  this.offsetY = 4;
+
+  //advance properties
+  this.health = 10;
+  this.target = null;
+  this.priority = "none";
+  this.pathQueue = [];
+  this.route = "dumb";
+  this.brain = [];
+  this.thinkIndex = 0;
+
+  //movement
+  this.speed = 3;
+  this.maxSpeed = 3;
+  this.initPos = 0;
+  this.moving = false;
+  this.x = x * size; 
+  this.y = y * size;
+  this.velX = 0;
+  this.velY = 0;
+  this.fps = 4;            //frame speed
+  this.fpr = 12;           //# of frames per row
+  this.show = true;
+  
+  //animation
+  this.idleNorth = [4,4,4,4];
+  this.idleSouth = [1,1,1,1];
+  this.idleWest = [7,7,7,7];
+  this.idleEast = [10,10,10,10];
+  this.moveNorth = [3,4,5,4];
+  this.moveSouth = [0,1,2,1];
+  this.moveWest = [6,7,8,7];
+  this.moveEast = [9,10,11,10];
+  this.curFrame = 0;
+  this.ct = 0;
+}
+//set of knights
+var army = [];
+  
 //arrow sprite
 var arrowIMG = new Image();
 var arrowReady = false;
@@ -102,7 +171,8 @@ arrowIMG.onload = new function(){arrowReady = true;}
 
 //simulation variables
 var log = "----SIMULATION START----\n";
-
+var time = 0;
+var start = new Date();
 
 //////////////////////       ITEM FUNCTIONS       //////////////
 
@@ -110,7 +180,6 @@ var itemSet = [];
 var foodSet = [];
 var moneySet = [];
 var weaponSet = [];
-var enemySet = [];
 
 //generic function for all items
 function item(name, x, y){
@@ -159,7 +228,7 @@ function resetSets(){
   foodSet = [];
   moneySet = [];
   weaponSet = [];
-  enemySet = [];
+  army = [];
 }
 
 //initiate food items
@@ -215,8 +284,8 @@ function makeMoney(max){
       it = new item(cashType, x, y);
       it.img = gemIMG;
       it.imgReady = gemReady;
-      it.dispX = 4;
-      it.dispY = 4;
+      it.dispX = 5;
+      it.dispY = 5;
       it.imageW = 6;
       it.imageH = 6;
       it.spec = "gem";
@@ -302,15 +371,16 @@ function pickup(robot){
     var myItem = itemSet[a];
     if(isTouching(robot, myItem) && myItem.show){
 
-      if(inGroup(myItem, foodSet)){
+      if(inArr(myItem, foodSet)){
         if(robot.health < 100)
           robot.health += myItem.value;
+        robot.foodCol++;
       }
-      else if(inGroup(myItem, moneySet))
+      else if(inArr(myItem, moneySet)){
+        robot.moneyCol++;
         robot.wallet += myItem.value;
+      }
 
-
-      console.log(myItem.name + " get!");
       newLog(myItem.name + " get!");
       myItem.show = false;
     }
@@ -329,7 +399,7 @@ function isTouching(robot, item){
 }
 
 //check if a certain item is in a certain group
-function inGroup(item, group){
+function inArr(item, group){
   for(var r = 0; r < group.length; r++){
     if(group[r] == item)
       return true;
@@ -337,9 +407,67 @@ function inGroup(item, group){
   return false;
 }
 
+//////////////////////      KNIGHT FUNCTIONS       //////////////
+
+//make a knight
+function ariseSir(prob, max){
+  for(var k = 0; k < max; k++){
+    var randNum = Math.floor(Math.random() * 101);
+    if(randNum < prob){     //make a knight!
+      var x = Math.floor(Math.random() * cols);
+      var y = Math.floor(Math.random() * rows);
+      var sir = new knight(x, y);
+      army.push(sir);
+    }
+  }
+}
+
+//have a knight check for any goblins
+function patrol(knight, robot, view){
+  //get the knight's direction and view # spaces in between
+  var kx = knight.x / size;
+  var ky = knight.y / size;
+  var los = [];
+  for(var y = 0; y < view; y++){
+    var pos = [];
+    if(knight.dir == "north")
+      pos = [kx, ky-1];
+    else if(knight.dir == "south")
+      pos = [kx, ky+1];
+    else if(knight.dir == "west")
+      pos = [kx-1, ky];
+    else if(knight.dir == "east")
+      pos = [kx+1, ky];
+
+    los.push(pos);
+  }
+
+  //check if the robot is on one of those spaces
+  var rx = robot.x / size;
+  var ry = robot.y / size;
+  var rpos = [rx, ry];
+
+  for(var r = 0; r < los.length; r++){
+    if(arrEq(los[r], rpos))
+      return robot;           //return new target if so
+  }
+  return null;                //no target found
+}
+
+//check if 2 arrays are equal
+function arrEq(arr1, arr2){
+  if(arr1.length != arr2.length)
+    return false;
+
+  for(var a = 0; a < arr1.length; a++){
+    if(arr1[a] != arr2[a])
+      return false;
+  }
+  return true;
+}
+
 
 //////////////////////        MAP FUNCTIONS       //////////////
-
 
 //start with a blank map or something
 function blankMap(){
@@ -355,8 +483,8 @@ function blankMap(){
 
 //make completely random tiled map
 function randomMap(){
-	map = [];
-	for(var a = 0; a < rows; a++){
+  	map = [];
+	for(var a = 0; a < rowows; a++){
 		var row = [];
 		for(var b = 0; b < cols; b++){
 			row[b] = randomTerrain();
@@ -433,16 +561,16 @@ function braveNewWorld(direction, robot){
   var halfTile = size / 2;
   if(direction == "north"){             //spawn at the bottom
     robot.y = rows * size - halfTile;
-    initPos = rows * size;
+    robot.initPos = rows * size;
   }else if(direction == "south"){       //spawn at the top
     robot.y = -halfTile;
-    initPos = -size;
+    robot.initPos = -size;
   }else if(direction == "west"){        //spawn at the right
     robot.x = cols * size - halfTile;
-    initPos = cols * size;
+    robot.initPos = cols * size;
   }else if(direction == "east"){        //spawn at the left
     robot.x = -halfTile;
-    initPos = -size;
+    robot.initPos = -size;
   }
 
   
@@ -451,21 +579,24 @@ function braveNewWorld(direction, robot){
   addNature(3, 1, 0.2, 0.01);               //water
   addNature(4, 3, 0.25, 0.02);              //tree
   makeFoods([new itemProb("apple", 5)]);    //foods
-  makeMoney(7);
+  makeMoney(7);                             //money
+  ariseSir(80.8, 3);                         //knights
   resetBot(bot);
   newLog("next world!");
+  bot.levels++;
 }
 //generates a new world map with bot starting from a point
 function braveNewWorld2(robot, x, y, spec){
   robot.x = size * x;
   robot.y = size * y;
-  moving = false;
+  robot.moving = false;
   blankMap(); 
   resetSets();
   addNature(3, 1, 0.2, 0.01);                //water
   addNature(4, 3, 0.25, 0.02);               //tree
   makeFoods([new itemProb("apple", 5)]);     //foods 
   makeMoney(7);
+  ariseSir(80, 3);
 }
 
 //start screen
@@ -479,32 +610,30 @@ function resetBot(robot){
   robot.pathQueue = [];
 }
 
-var initPos;
-var moving;
 function goNorth(robot){
-  if(!moving){
-    initPos = Math.floor(robot.y / size) * size;
+  if(!robot.moving){
+    robot.initPos = Math.floor(robot.y / size) * size;
     robot.dir = "north";
     robot.action = "travel";
   }
 }
 function goSouth(robot){
-  if(!moving){
-    initPos = Math.floor(robot.y / size) * size;
+  if(!robot.moving){
+    robot.initPos = Math.floor(robot.y / size) * size;
     robot.dir = "south";
     robot.action = "travel";
   }
 }
 function goEast(robot){
-  if(!moving){
-    initPos = Math.floor(robot.x / size) * size;
+  if(!robot.moving){
+    robot.initPos = Math.floor(robot.x / size) * size;
     robot.dir = "east";
     robot.action = "travel";
   }
 }
 function goWest(robot){
-  if(!moving){
-    initPos = Math.floor(robot.x / size) * size;
+  if(!robot.moving){
+    robot.initPos = Math.floor(robot.x / size) * size;
     robot.dir = "west";
     robot.action = "travel";
   }
@@ -513,44 +642,44 @@ function travel(robot){
   if(robot.action == "travel"){   //continue if allowed to move
     //travel north
     if(robot.dir == "north"){
-      if(Math.floor(robot.y) > (initPos - size)){
+      if(Math.floor(robot.y) > (robot.initPos - size)){
         robot.velY = robot.speed;
-        robot.y += velControl(Math.floor(robot.y), -robot.velY, (initPos - size));
-        moving = true;
+        robot.y += velControl(Math.floor(robot.y), -robot.velY, (robot.initPos - size));
+        robot.moving = true;
       }else{
         robot.velY = 0;
         robot.action = "idle";
-        moving = false;
+        robot.moving = false;
       }
     }else if(robot.dir == "south"){
-      if(Math.floor(robot.y) < (initPos + size)){
+      if(Math.floor(robot.y) < (robot.initPos + size)){
         robot.velY = robot.speed;
-        robot.y += velControl(Math.floor(robot.y), robot.velY, (initPos + size));;
-        moving = true;
+        robot.y += velControl(Math.floor(robot.y), robot.velY, (robot.initPos + size));;
+        robot.moving = true;
       }else{
         robot.velY = 0;
         robot.action = "idle";
-        moving = false;
+        robot.moving = false;
       }
     }else if(robot.dir == "east"){
-      if(Math.floor(robot.x) < (initPos + size)){
+      if(Math.floor(robot.x) < (robot.initPos + size)){
         robot.velX = robot.speed;
-        robot.x += velControl(Math.floor(robot.x), robot.velX, (initPos + size));
-        moving = true;
+        robot.x += velControl(Math.floor(robot.x), robot.velX, (robot.initPos + size));
+        robot.moving = true;
       }else{
         robot.velX = 0;
         robot.action = "idle";
-        moving = false;
+        robot.moving = false;
       }
     }else if(robot.dir == "west"){
-      if(Math.floor(robot.x) > (initPos - size)){
+      if(Math.floor(robot.x) > (robot.initPos - size)){
         robot.velX = robot.speed;
-        robot.x += velControl(Math.floor(robot.x), -robot.velX, (initPos - size));;
-        moving = true;
+        robot.x += velControl(Math.floor(robot.x), -robot.velX, (robot.initPos - size));;
+        robot.moving = true;
       }else{
         robot.velX = 0;
         robot.action = "idle";
-        moving = false;
+        robot.moving = false;
       }
     }
   }
@@ -570,7 +699,7 @@ function velControl(cur, value, max){
     else
       return value;
   }else{
-    return value;
+    return 1;
   }
 }
 
@@ -609,7 +738,7 @@ function terrainTrek(robot){
 
 //act upon the robot pathQueue
 function smallStep(robot){
-  if(robot.pathQueue.length != 0 && !moving){       //if not already moving and not an empty pathQueue
+  if(robot.pathQueue.length != 0 && !robot.moving){       //if not already moving and not an empty pathQueue
     var nextStep = robot.pathQueue[0];
     var curX = Math.floor(robot.x / 16);
     var curY = Math.floor(robot.y / 16);
@@ -681,6 +810,24 @@ function makeACompass(robot, set){
   }
 }
 
+//import the stats
+function setStats(robot, set){
+  for(var s = 0; s < botStats.length; s++){
+    if(botStats[s].name == set){
+      var properties = botStats[s].props;
+      for(var p = 0; p < properties.length; p++){
+        var prop = properties[p];
+        if(prop.id == "maxHealth")
+          robot.maxHealth = prop.val;
+        else if(prop.id == "minMoney")
+          robot.minCash = prop.val; 
+        else if(prop.id == "pathFind")
+          robot.route = prop.val;
+      }
+    }
+  }
+}
+
 //decides how to walk
 var useCompass = true;
 function compass(robot){
@@ -729,16 +876,16 @@ function processDir(robot, dir){
 //random walking
 function drunkardsWalk(robot){
   var dice;
-  if(!moving){
+  if(!robot.moving){
     dice = Math.floor(Math.random() * 4);
     if(dice == 0){
-      goNorth(bot);
+      goNorth(robot);
     }else if(dice == 1){
-      goSouth(bot);
+      goSouth(robot);
     }else if(dice == 2){
-      goWest(bot);
+      goWest(robot);
     }else if(dice == 3){
-      goEast(bot);
+      goEast(robot);
     }
   }
 }
@@ -870,6 +1017,14 @@ function drawBot(){
     updaterobot(bot);
     renderrobot(bot);
 }
+
+function drawKnight(){
+  for(var k = 0; k < army.length; k++){
+    updaterobot(army[k]);
+    renderrobot(army[k]);
+  }
+}
+
 function updaterobot(robot){
   //set the animation sequence
   var sequence;
@@ -924,7 +1079,7 @@ function renderrobot(robot){
     ctx.drawImage(robot.img, 
     col * robot.width, row * robot.height, 
     robot.width, robot.height,
-    robot.x - 8, robot.y - 4, 
+    robot.x - robot.offsetX, robot.y - robot.offsetY, 
     robot.width, robot.height);
   }
 }
@@ -963,6 +1118,9 @@ function render(){
   //draw the robot
   drawBot();
 
+  //draw the knights
+  drawKnight();
+
   //draw tree tops
   drawTreeTop();
 
@@ -981,6 +1139,7 @@ function render(){
 
 function init(){
   makeACompass(bot, 'a');
+  setStats(bot, "a");
   if(localStorage.simulCt)
     localStorage.simulCt++;
   else{
@@ -995,6 +1154,7 @@ function main(){
 
   //drunkardsWalk();
 
+  //robot
   travel(bot);
   smallStep(bot);
   terrainTrek(bot);
@@ -1002,7 +1162,14 @@ function main(){
   atWorldsEnd(bot);
   pickup(bot);
 
-  if(useCompass && !moving)
+  //knight
+  for(var k = 0; k < army.length; k++){
+    drunkardsWalk(army[k]);
+    travel(army[k]);
+    terrainTrek(army[k]);
+  }
+
+  if(useCompass && !bot.moving)
     compass(bot);
 
   if(bot.health > bot.maxHealth)
@@ -1021,6 +1188,10 @@ function main(){
   settings += " --- Pix X: " + pixX + " | Pix Y: " + pixY;
   settings += " ---- Compass: " + obj;
   document.getElementById('botSettings').innerHTML = settings;
+
+  //simulation update
+  if(run)
+    time = new Date() - start;
 }
 
 
@@ -1054,12 +1225,24 @@ function destroyBtn(ev){
 //stops the simulation
 var run = true;
 function stop(){
-  newLog("----SIMULATION FINISH----");
+  newLog("----SIMULATION FINISH----\n\n");
+  newLog(getBotStats(bot));
   run = false;
   useCompass = false;
 }
 
-if(run)
-  main();
+//gets the status of a robot
+function getBotStats(robot){
+  var st = "";
+  st += "Bot:    " + robot.name + "\n";
+  st += "-> Health: " + robot.health + "\n";
+  st += "-> Wallet: " + robot.wallet + "\n";
+  st += "-> Weapon: " + robot.weapon + "\n";
+  st += "-> Kills:  " + robot.kills + "\n";
+  st += "-> Time:   " + time + "\n";
 
+  return st;
+}
+
+main();
 render();
