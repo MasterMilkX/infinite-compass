@@ -20,8 +20,8 @@ function gotoDumb(robot, target, map, mapSize){
   //position variables
   var robotX = Math.round(robot.x / mapSize);
   var robotY = Math.round(robot.y / mapSize);
-  var targetX = target.x;
-  var targetY = target.y ;
+  var targetX = Math.round(target.x / mapSize);
+  var targetY = Math.round(target.y / mapSize);
   var robotPos = [robotX, robotY];
   var targetPos = [targetX, targetY];
 

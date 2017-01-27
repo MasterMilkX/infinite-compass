@@ -63,6 +63,12 @@ var bot = {
   //advance properties
   health : 100,
   maxHealth : 100,
+  hurt : false,
+  grace : null,
+  maxGrace : 1.5,
+  damage : 5,
+
+  //pathfinding properties
   target : null,
   priority : "none",
   pathQueue : [],
@@ -113,9 +119,9 @@ var knightReady = false;
 knightIMG.onload = function(){knightReady = true;};
 
 //knight object
-function knight(x, y){
+function Knight(name, x, y, patrolType){
   //sprite properties
-  this.name = "knight";
+  this.name = name;
   this.width = 16;
   this.height = 20;
   this.dir = "south";
@@ -125,18 +131,26 @@ function knight(x, y){
   this.offsetX = 0;
   this.offsetY = 4;
 
-  //advance properties
-  this.health = 10;
+  //weapon and health properties
+  this.health = 20;
+  this.hurt = false;
+  this.grace = null;
+  this.maxGrace = 2;
+  this.damage = 10;
+
+  //path finding properties
   this.target = null;
   this.priority = "none";
   this.pathQueue = [];
   this.route = "dumb";
   this.brain = [];
   this.thinkIndex = 0;
+  this.patrolType = patrolType;
+  this.radius = Math.floor(Math.random() * 4) + 3;;
 
   //movement
-  this.speed = 3;
-  this.maxSpeed = 3;
+  this.maxSpeed = Math.floor(Math.random() * 3) + 1;
+  this.speed = this.maxSpeed;
   this.initPos = 0;
   this.moving = false;
   this.x = x * size; 
@@ -169,6 +183,9 @@ var arrowShow = false;
 arrowIMG.src = "sprites/arrow.png";
 arrowIMG.onload = new function(){arrowReady = true;}
 
+//set of bots
+var allBots = [];
+
 //simulation variables
 var log = "----SIMULATION START----\n";
 var time = 0;
@@ -184,8 +201,8 @@ var weaponSet = [];
 //generic function for all items
 function item(name, x, y){
   this.name = name;
-  this.x = x;
-  this.y = y;
+  this.x = x * 16;
+  this.y = y * 16;
   this.show = true;
   this.img;
   this.imgReady;
@@ -229,6 +246,7 @@ function resetSets(){
   moneySet = [];
   weaponSet = [];
   army = [];
+  allBots = [];
 }
 
 //initiate food items
@@ -322,7 +340,7 @@ function randomCash(){
     return "jackpot";
 }
 
-//returns monetary value
+//returns monetaoy value
 function getMoneyValue(name){
   if(name == "copper")
     return 1;
@@ -354,7 +372,7 @@ function getGemOffset(gem){
 }
 
 
-//organize items by category
+//organize items by categooy
 function organizeItems(){
   for(var a = 0; a < itemSet.length; a++){
     var myItem = itemSet[a];
@@ -370,10 +388,13 @@ function pickup(robot){
   for(var a = 0; a < itemSet.length; a++){
     var myItem = itemSet[a];
     if(isTouching(robot, myItem) && myItem.show){
+      newLog(myItem.name + " get!");
 
       if(inArr(myItem, foodSet)){
-        if(robot.health < 100)
+        if(robot.health < 100){
+          newLog(myItem.value + " health restored!");
           robot.health += myItem.value;
+        }
         robot.foodCol++;
       }
       else if(inArr(myItem, moneySet)){
@@ -381,7 +402,6 @@ function pickup(robot){
         robot.wallet += myItem.value;
       }
 
-      newLog(myItem.name + " get!");
       myItem.show = false;
     }
   }
@@ -391,8 +411,10 @@ function pickup(robot){
 function isTouching(robot, item){
   var botX = Math.round(robot.x / size);
   var botY = Math.round(robot.y / size);
+  var itemX = Math.round(item.x / size);
+  var itemY = Math.round(item.y / size);
 
-  if(botX == item.x && botY == item.y)
+  if(botX == itemX && botY == itemY)
     return true;
   else
     return false;
@@ -405,65 +427,6 @@ function inArr(item, group){
       return true;
   }
   return false;
-}
-
-//////////////////////      KNIGHT FUNCTIONS       //////////////
-
-//make a knight
-function ariseSir(prob, max){
-  for(var k = 0; k < max; k++){
-    var randNum = Math.floor(Math.random() * 101);
-    if(randNum < prob){     //make a knight!
-      var x = Math.floor(Math.random() * cols);
-      var y = Math.floor(Math.random() * rows);
-      var sir = new knight(x, y);
-      army.push(sir);
-    }
-  }
-}
-
-//have a knight check for any goblins
-function patrol(knight, robot, view){
-  //get the knight's direction and view # spaces in between
-  var kx = knight.x / size;
-  var ky = knight.y / size;
-  var los = [];
-  for(var y = 0; y < view; y++){
-    var pos = [];
-    if(knight.dir == "north")
-      pos = [kx, ky-1];
-    else if(knight.dir == "south")
-      pos = [kx, ky+1];
-    else if(knight.dir == "west")
-      pos = [kx-1, ky];
-    else if(knight.dir == "east")
-      pos = [kx+1, ky];
-
-    los.push(pos);
-  }
-
-  //check if the robot is on one of those spaces
-  var rx = robot.x / size;
-  var ry = robot.y / size;
-  var rpos = [rx, ry];
-
-  for(var r = 0; r < los.length; r++){
-    if(arrEq(los[r], rpos))
-      return robot;           //return new target if so
-  }
-  return null;                //no target found
-}
-
-//check if 2 arrays are equal
-function arrEq(arr1, arr2){
-  if(arr1.length != arr2.length)
-    return false;
-
-  for(var a = 0; a < arr1.length; a++){
-    if(arr1[a] != arr2[a])
-      return false;
-  }
-  return true;
 }
 
 
@@ -578,9 +541,9 @@ function braveNewWorld(direction, robot){
   resetSets();
   addNature(3, 1, 0.2, 0.01);               //water
   addNature(4, 3, 0.25, 0.02);              //tree
-  makeFoods([new itemProb("apple", 5)]);    //foods
+  makeFoods([new itemProb("apple", 2)]);    //foods
   makeMoney(7);                             //money
-  ariseSir(80.8, 3);                         //knights
+  ariseSir(80, 4);                         //knights
   resetBot(bot);
   newLog("next world!");
   bot.levels++;
@@ -592,11 +555,12 @@ function braveNewWorld2(robot, x, y, spec){
   robot.moving = false;
   blankMap(); 
   resetSets();
+  resetBot(bot);
   addNature(3, 1, 0.2, 0.01);                //water
   addNature(4, 3, 0.25, 0.02);               //tree
-  makeFoods([new itemProb("apple", 5)]);     //foods 
+  makeFoods([new itemProb("apple", 2)]);     //foods 
   makeMoney(7);
-  ariseSir(80, 3);
+  ariseSir(80, 4);
 }
 
 //start screen
@@ -608,6 +572,7 @@ braveNewWorld2(bot, 9, 9, "none");
 function resetBot(robot){
   robot.thinkIndex = 0;
   robot.pathQueue = [];
+  allBots.push(robot);
 }
 
 function goNorth(robot){
@@ -762,44 +727,6 @@ function smallStep(robot){
   }
 }
 
-//sample circle function
-function circleUp(robot, radius){
-  //reset the properties
-  var initX = Math.floor(robot.x / 16);
-  var initY = Math.floor(robot.y / 16);
-  var linePath = [];
-  var last;
-  robot.pathQueue = [];
-
-  //make waypoints
-  linePath.push([initX, initY]);        //initial position
-
-  //add r waypoints north
-  for(var a = 1; a < radius; a++){
-    last = linePath[linePath.length - 1];
-    linePath.push([last[0], last[1] - 1]);
-  }
-  //add r waypoints east
-  for(var a = 1; a < radius; a++){
-    last = linePath[linePath.length - 1];
-    linePath.push([last[0] + 1, last[1]]);
-  }
-  //add r waypoints south
-  for(var a = 1; a < radius; a++){
-    last = linePath[linePath.length - 1];
-    linePath.push([last[0], last[1] + 1]);
-  }
-  //add r waypoints west
-  for(var a = 1; a < radius; a++){
-    last = linePath[linePath.length - 1];
-    linePath.push([last[0] - 1, last[1]]);
-  }
-  
-  //add all to robot's path pathQueue [override]
-  robot.pathQueue = linePath;
-}
-
-
 
 //import the actions
 function makeACompass(robot, set){
@@ -857,6 +784,7 @@ function think(robot, action){
   }
 }
 
+//decide which was to go based on the direction given
 function processDir(robot, dir){
   //reset the properties
   var initX = Math.floor(robot.x / 16);
@@ -890,6 +818,25 @@ function drunkardsWalk(robot){
   }
 }
 
+//random walking path based
+function drunkardsWalkPath(robot){
+  var initX = Math.floor(robot.x / 16);
+  var initY = Math.floor(robot.y / 16);
+  robot.pathQueue = [];
+
+  //make waypoints
+  var dice = Math.floor(Math.random() * 4);
+  if(dice == 0){
+    robot.pathQueue.push([initX, initY - 1]);
+  }else if(dice == 1){
+    robot.pathQueue.push([initX, initY + 1]);
+  }else if(dice == 2){
+    robot.pathQueue.push([initX + 1, initY]);
+  }else if(dice == 3){
+    robot.pathQueue.push([initX - 1, initY]);
+  }
+}
+
 //go to closest object
 function gotoClosest(robot, group){
   //check if any elements
@@ -913,8 +860,11 @@ function gotoClosest(robot, group){
 
     //get the total distance for each item
     for(var d = 0; d < goodSet.length; d++){
-      var distX = Math.abs(botX - goodSet[d].x);
-      var distY = Math.abs(botY - goodSet[d].y);
+      var itemX = Math.floor(goodSet[d].x / size);
+      var itemY = Math.floor(goodSet[d].y / size);
+
+      var distX = Math.abs(botX - itemX);
+      var distY = Math.abs(botY - itemY);
       var distTot = distX + distY;
       dists.push(distTot);
     }
@@ -956,6 +906,208 @@ function gotoEdge(robot){
       return "south";
     }
   }
+}
+
+
+//////////////////////      KNIGHT FUNCTIONS       //////////////
+
+//make a knight
+function ariseSir(prob, max){
+  for(var k = 0; k < max; k++){
+    var randNum = Math.floor(Math.random() * 101);
+    if(randNum < prob){     //make a knight!
+      var x = Math.floor(Math.random() * cols);
+      var y = Math.floor(Math.random() * rows);
+
+      var p = Math.floor(Math.random() * 5);
+      var patrol = (p == 0 ? "drunk" : "sober");
+
+      var sir = new Knight("knight" + k, x, y, patrol);
+      army.push(sir);
+      allBots.push(sir);
+    }
+  }
+}
+
+//patrol the area or chase the goblin
+function guard(knight, robot){
+  if(knight.target == null)
+    knight.target = intruder(knight, robot, knight.radius, false);
+
+  if(knight.target == robot){
+    knight.pathQueue = [];
+    processDir(knight, gotoDumb(knight, knight.target, map, size));
+  }
+  
+  else if(knight.pathQueue.length == 0){
+    if(knight.patrolType == "drunk")
+      drunkardsWalkPath(knight);
+    else if(knight.patrolType == "sober")
+      circleUp(knight, knight.radius);
+  }
+  
+}
+
+//have a knight check for any goblins
+function intruder(knight, robot, view, treeBlock){
+  //if already in sight - double the view
+  if(knight.target == robot)
+    view *= 2;
+
+  //get the knight's direction and view # spaces in between
+  var rx = Math.round(knight.x / size);
+  var ry = Math.round(knight.y / size);
+  var los = [];
+  for(var i = 1; i <= view; i++){
+    var pos = [];
+    if(knight.dir == "north")
+      pos = [rx, ry-i];
+    else if(knight.dir == "south")
+      pos = [rx, ry+i];
+    else if(knight.dir == "west")
+      pos = [rx-i, ry];
+    else if(knight.dir == "east")
+      pos = [rx+i, ry];
+
+    los.push(pos);
+  }
+
+  //check if the robot is on one of those spaces
+  var ox = Math.round(robot.x / size);
+  var oy = Math.round(robot.y / size);
+  var rpos = [ox, oy];
+
+  for(var r = 0; r < los.length; r++){
+    if(arrEq(los[r], rpos)){
+      if(!treeBlock || map[los[r][0]][los[r][1]] !== 3){
+        if(knight.target == null){
+          console.log(knight.name + ": HALT!")  //first saw goblin
+          knight.pathQueue = [];                //clear original path
+        }
+        return robot;           //return new target if so
+      }
+    }
+  }
+  return null;                //no target found
+}
+
+//sample circle function
+function circleUp(robot, radius){
+  //reset the properties
+  var initX = Math.floor(robot.x / 16);
+  var initY = Math.floor(robot.y / 16);
+  var linePath = [];
+  var last;
+  robot.pathQueue = [];
+
+  //make waypoints
+  linePath.push([initX, initY]);        //initial position
+
+  //add r waypoints north
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0], last[1] - 1]);
+  }
+  //add r waypoints east
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0] + 1, last[1]]);
+  }
+  //add r waypoints south
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0], last[1] + 1]);
+  }
+  //add r waypoints west
+  for(var a = 1; a < radius; a++){
+    last = linePath[linePath.length - 1];
+    linePath.push([last[0] - 1, last[1]]);
+  }
+  
+  //add all to robot's path pathQueue [override]
+  robot.pathQueue = linePath;
+}
+
+//determine if colliding with an object
+function objCollide(robot, obj){
+  //get the positions
+  var rx = Math.round(robot.x / size);
+  var ry = Math.round(robot.y / size);
+  var ox = Math.round(obj.x / size);
+  var oy = Math.round(obj.y / size);
+
+  //decide if adjacent to robot
+  if(robot.dir == "north" && (rx == ox) && ((oy+1) == ry))
+    return true;
+  else if(robot.dir == "south" && (rx == ox) && ((oy-1) == ry))
+    return true;
+  else if(robot.dir == "east" && (ry == oy) && ((ox-1) == rx))
+    return true;
+  else if(robot.dir == "west" && (ry == oy) && ((ox+1) == rx))
+    return true;
+  else if(rx == ox && ry == oy)
+    return true;
+  else
+    return false;
+}
+//determine if colliding with an object
+function objCollideSet(robot, set){
+  //get the positions
+  var rx = Math.round(robot.x / size);
+  var ry = Math.round(robot.y / size);
+
+  for(var o = 0; o < set.length; o++){
+    var obj = set[o];
+    var ox = Math.round(obj.x / size);
+    var oy = Math.round(obj.y / size);
+
+    //decide if adjacent to robot
+    if(robot.dir == "north" && (rx == ox) && ((oy+1) == ry))
+      return true;
+    else if(robot.dir == "south" && (rx == ox) && ((oy-1) == ry))
+      return true;
+    else if(robot.dir == "east" && (ry == oy) && ((ox-1) == rx))
+      return true;
+    else if(robot.dir == "west" && (ry == oy) && ((ox+1) == rx))
+      return true;
+    else if(rx == ox && ry == oy)
+      return true;
+  }
+  return false;
+}
+
+//battler
+function attack(attacker, victim){
+  if(objCollide(attacker, victim) && !victim.hurt && !attacker.moving){
+    console.log(attacker.name + ": ATTACK!");
+    hurt(victim, attacker.damage);
+  }
+}
+
+//take damage
+function hurt(robot, damage){
+  robot.health -= damage;
+  newLog(robot.name + " took " + damage + " damage");
+  robot.hurt = true;
+  robot.grace = setTimeout(function(){gracePeriod(robot)}, robot.maxGrace*1000);
+}
+
+//reset the grace period to take more damage
+function gracePeriod(robot){
+  clearTimeout(robot.grace);
+  robot.hurt = false;
+}
+
+//check if 2 arrays are equal
+function arrEq(arr1, arr2){
+  if(arr1.length != arr2.length)
+    return false;
+
+  for(var a = 0; a < arr1.length; a++){
+    if(arr1[a] != arr2[a])
+      return false;
+  }
+  return true;
 }
 
 
@@ -1005,8 +1157,8 @@ function drawItems(){
     if(it.imgReady && it.show){
       ctx.drawImage(it.img, it.offset, 0, 
                 it.imageW, it.imageH,
-                (it.x * size) + it.dispX, 
-                (it.y * size) + it.dispY,
+                (it.x) + it.dispX, 
+                (it.y) + it.dispY,
                 it.imageW, it.imageH);
     }
   }
@@ -1098,7 +1250,7 @@ function drawArrow(robot){
 function render(){
   ctx.save();
   
-  //clear everything
+  //clear eveoything
   ctx.clearRect(0, 0, canvas.width,canvas.height);
   
   //re-draw bg
@@ -1148,27 +1300,39 @@ function init(){
 }
 init();
 
+
 function main(){
 	requestAnimationFrame(main);
   canvas.focus();
 
-  //drunkardsWalk();
+  //generic robot functions
+  for(var b = 0; b < allBots.length; b++){
+    var robot = allBots[b];
+    travel(robot);
+    terrainTrek(robot);
+  }
 
-  //robot
-  travel(bot);
-  smallStep(bot);
-  terrainTrek(bot);
+  //goblin robot
+  //if(!objCollideSet(bot, army))
+  if(run)
+    smallStep(bot);
+
   finderArrow(bot);
   atWorldsEnd(bot);
   pickup(bot);
 
-  //knight
-  for(var k = 0; k < army.length; k++){
-    drunkardsWalk(army[k]);
-    travel(army[k]);
-    terrainTrek(army[k]);
-  }
+  if(bot.health <= 0 && run)
+    stop(); 
 
+  //knight robots
+  for(var k = 0; k < army.length; k++){
+    guard(army[k], bot);
+    attack(army[k], bot);
+    if(!objCollide(army[k], bot) && run)
+      smallStep(army[k]);
+  }
+  
+  
   if(useCompass && !bot.moving)
     compass(bot);
 
