@@ -16,11 +16,13 @@ var botSets = [
 	new set("b", [ "health", "weapons", "money", "blood" ]),
 	new set("c", [ "weapons", "blood", "health", "money" ]),
 	new set("d", [ "money", "health", "weapons", "blood" ]),
-	new set("e", [ "health", "money", "weapons" ])
+	new set("e", [ "health", "money"])
 ];
 
 var botStats = [
-	new stat("a", [	  new prop("maxHealth", 200),
+	new stat("a", [	  new prop("maxHealth", 150),
 					  new prop("minMoney", 10),
-					  new prop("pathFind", "smart")])
+					  new prop("pathFind", "smart"),
+					  new prop("danger", true),
+					  new prop("lowHealth", (2/5))])
 ];

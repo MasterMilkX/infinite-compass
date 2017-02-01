@@ -63,10 +63,14 @@ var bot = {
   //advance properties
   health : 100,
   maxHealth : 100,
+  lowHealth : (1/2),
   hurt : false,
   grace : null,
-  maxGrace : 1.5,
+  maxGrace : 2,
   damage : 5,
+  wallet : 0,
+  minCash : 0,
+  weapon : null,
 
   //pathfinding properties
   target : null,
@@ -75,9 +79,8 @@ var bot = {
   route : "dumb",
   brain : [],
   thinkIndex : 0,
-  wallet : 0,
-  minCash : 0,
-  weapon : null,
+  nextWorld : false,
+  danger : false,
 
   //collection values
   kills : 0,
@@ -111,6 +114,11 @@ var bot = {
   ct : 0
 };
 
+//grave
+var graveIMG = new Image();
+graveIMG.src = "sprites/grave.png";
+var graveReady = false;
+graveIMG.onload = function(){graveReady = true;}
 
 //knight image properties
 var knightIMG = new Image();
@@ -149,7 +157,7 @@ function Knight(name, x, y, patrolType){
   this.radius = Math.floor(Math.random() * 4) + 3;;
 
   //movement
-  this.maxSpeed = Math.floor(Math.random() * 3) + 1;
+  this.maxSpeed = Math.floor(Math.random() * 2) + 1;
   this.speed = this.maxSpeed;
   this.initPos = 0;
   this.moving = false;
@@ -272,7 +280,7 @@ function makeFoods(probs){
         it.imageW = it.img.width;
         it.imageH = it.img.height;
         it.spec = "health";
-        it.value = 5;
+        it.value = 10;
       }
       itemSet.push(it);
       foodSet.push(it);
@@ -572,6 +580,7 @@ braveNewWorld2(bot, 9, 9, "none");
 function resetBot(robot){
   robot.thinkIndex = 0;
   robot.pathQueue = [];
+  robot.nextWorld = false;
   allBots.push(robot);
 }
 
@@ -750,13 +759,70 @@ function setStats(robot, set){
           robot.minCash = prop.val; 
         else if(prop.id == "pathFind")
           robot.route = prop.val;
+        else if(prop.id == "danger")
+          robot.danger = prop.val;
+        else if(prop.id == "lowHealth")
+          robot.lowHealth = prop.val;
       }
     }
   }
 }
 
+//decides what to do next
+function compass(robot){
+  if(robot.nextWorld){
+    processDir(robot, gotoEdge(robot));
+  }
+  else{
+    var objective = think(robot, 0);
+    if(objective != "edge"){
+      //run away if low health
+      if(robot.priority != "health" && robot.danger && (robot.health <= (robot.maxHealth * robot.lowHealth)))
+        robot.nextWorld = true;
+      //otherwise complete objective
+      else
+        processDir(robot, objective);
+    }else{
+      robot.nextWorld = true;
+    } 
+  }
+}
+
+//decides based on action priority
+function think(robot, step){
+  if(step >= robot.brain.length)
+    return "edge";
+  else{
+    robot.priority = robot.brain[step];
+    if(robot.brain[step] == "health"){
+      if(gotoClosest(robot, foodSet) != null && robot.health < robot.maxHealth)
+        return gotoDumb(robot, gotoClosest(robot, foodSet), map, size);
+      else
+        return think(robot, step+1);
+    }else if(robot.brain[step] == "money"){
+      if(gotoClosest(robot, moneySet) != null)
+        return gotoDumb(robot, gotoClosest(robot, moneySet), map, size);
+      else
+        return think(robot, step+1);
+    }else if(robot.brain[step] == "weapons"){
+      if(gotoClosest(robot, weaponSet) != null && robot.weapon == null)
+        return gotoDumb(robot, gotoClosest(robot, weaponSet), map, size);
+      else
+        return think(robot, step+1);
+    }else if(robot.brain[step] == "blood"){
+      if(gotoClosest(robot, army) != null && robot.weapon != null)
+        return gotoDumb(robot, gotoClosest(robot, army), map, size);
+      else
+        return think(robot, step+1);
+    }
+  }
+  
+}
+
 //decides how to walk
 var useCompass = true;
+
+/*
 function compass(robot){
   //if out of options
   if(robot.thinkIndex >= robot.brain.length){
@@ -775,7 +841,14 @@ function compass(robot){
 
 //brain blast!
 function think(robot, action){
-  if(action == "health" && robot.health < 100){
+  if(robot.health < (robot.maxHealth / 3)){
+    var lifesaver = gotoClosest(robot, foodSet);
+    if(lifesaver != null)
+      return gotoDumb(robot, lifesaver, map, size);
+    else
+      return "done";
+  }
+  else if(action == "health"){
     return gotoDumb(robot, gotoClosest(robot, foodSet), map, size);
   }else if(action == "money"){
     return gotoDumb(robot, gotoClosest(robot, moneySet), map, size);
@@ -783,6 +856,7 @@ function think(robot, action){
     return "done";
   }
 }
+*/
 
 //decide which was to go based on the direction given
 function processDir(robot, dir){
@@ -932,7 +1006,7 @@ function ariseSir(prob, max){
 //patrol the area or chase the goblin
 function guard(knight, robot){
   if(knight.target == null)
-    knight.target = intruder(knight, robot, knight.radius, false);
+    knight.target = intruder(knight, robot, knight.radius, true);
 
   if(knight.target == robot){
     knight.pathQueue = [];
@@ -1233,6 +1307,8 @@ function renderrobot(robot){
     robot.width, robot.height,
     robot.x - robot.offsetX, robot.y - robot.offsetY, 
     robot.width, robot.height);
+  }else{
+    ctx.drawImage(graveIMG, robot.x, robot.y);
   }
 }
 
@@ -1321,8 +1397,10 @@ function main(){
   atWorldsEnd(bot);
   pickup(bot);
 
-  if(bot.health <= 0 && run)
+  if(bot.health <= 0 && run){
+    bot.show = false;
     stop(); 
+  }
 
   //knight robots
   for(var k = 0; k < army.length; k++){
@@ -1343,10 +1421,10 @@ function main(){
   var pixX = Math.round(bot.x / size);
   var pixY = Math.round(bot.y / size);
   var obj;
-  if(bot.thinkIndex < bot.brain.length)
-    obj = bot.brain[bot.thinkIndex];
-  else
+  if(bot.nextWorld)
     obj = "edge";
+  else
+    obj = bot.priority;
 
   var settings = "X: " + Math.round(bot.x) + " | Y: " + Math.round(bot.y);
   settings += " --- Pix X: " + pixX + " | Pix Y: " + pixY;
@@ -1361,7 +1439,8 @@ function main(){
 
 //log functions
 function newLog(statement){
-  log += statement + "\n";
+  if(run)
+    log += statement + "\n";
 }
 function downloadLog(){
   var blob = new Blob([log], {type:"text/plain"});
@@ -1398,12 +1477,16 @@ function stop(){
 //gets the status of a robot
 function getBotStats(robot){
   var st = "";
-  st += "Bot:    " + robot.name + "\n";
-  st += "-> Health: " + robot.health + "\n";
-  st += "-> Wallet: " + robot.wallet + "\n";
-  st += "-> Weapon: " + robot.weapon + "\n";
-  st += "-> Kills:  " + robot.kills + "\n";
-  st += "-> Time:   " + time + "\n";
+  st += "Bot : " + robot.name.toUpperCase() + "\n";
+  st += "-> Health : " + robot.health + "\n";
+  st += "-> Wallet : " + robot.wallet + "\n";
+  st += "-> Weapon : " + robot.weapon + "\n";
+  st += "-> Kills  : " + robot.kills + "\n";
+  st += "-> Time   : " + (time / 1000) + "s\n";
+  st += "\n\n";
+  st += "Money picked up: " + robot.moneyCol + "\n";
+  st += "Items picked up: " + robot.foodCol + "\n";
+  st += "Worlds traveled: " + robot.levels + "\n";
 
   return st;
 }
