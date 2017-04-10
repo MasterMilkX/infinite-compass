@@ -89,8 +89,8 @@ var bot = {
   levels : 0,
 
   //movement
-  speed : 2,
-  maxSpeed : 2,
+  speed : 1,
+  maxSpeed : 1,
   initPos : 0,
   moving : false,
   x : 9 * size, 
@@ -157,7 +157,7 @@ function Knight(name, x, y, patrolType){
   this.radius = Math.floor(Math.random() * 4) + 3;;
 
   //movement
-  this.maxSpeed = Math.floor(Math.random() * 2) + 1;
+  this.maxSpeed = Math.random() + 1;
   this.speed = this.maxSpeed;
   this.initPos = 0;
   this.moving = false;
